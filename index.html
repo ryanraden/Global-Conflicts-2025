@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- This viewport meta tag is essential for mobile responsiveness -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geopolitical Strategic Foresight Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Chart.js Plugin for Annotation is needed for the chart labels -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        /* --- CSS COLOR VARIABLES FOR THEMING --- */
+        :root {
+            --bg-color: #f7f8f9;
+            --text-color-primary: #111827;
+            --text-color-secondary: #374151;
+            --text-color-muted: #4b5563;
+            --card-bg-color: #ffffff;
+            --card-border-color: #e5e7eb;
+            --control-bg-color: #f3f4f6;
+            --tab-inactive-bg: #f3f4f6;
+            --tab-active-border: #2563eb;
+            --header-color: #1f2937;
+            --chart-grid-color: #e5e7eb;
+        }
+
+        /* --- GENERAL STYLING --- */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--header-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .card { 
+            background-color: var(--card-bg-color); 
+            border: 1px solid var(--card-border-color); 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); 
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        
+        .tab-button {
+            padding: 0.75rem 1.25rem;
+            font-weight: 500;
+            border: 1px solid #d1d5db; /* Darker border for inactive tabs */
+            background-color: var(--tab-inactive-bg);
+            color: var(--text-color-secondary); /* Darker font color */
+            transition: all 0.2s;
+            border-radius: 0.5rem;
+        }
+        .tab-button:hover {
+            background-color: #e5e7eb;
+        }
+        .tab-button.active {
+            background-color: var(--card-bg-color);
+            border-color: var(--tab-active-border);
+            color: var(--tab-active-border);
+            font-weight: 600;
+        }
+        
+        /* General Text/Color Overrides */
+        h1, h2, h3, h4, h5 { color: var(--text-color-primary); }
+        p, span { color: var(--text-color-secondary); }
+
+        /* Risk Indicators */
+        .risk-indicator { font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; display: inline-flex; align-items: center;}
+        /* Standard color palette maintained for data emphasis */
+        .risk-winwin { background-color: #d4edda; color: #009E73; }
+        .risk-contained { background-color: #fff3cd; color: #E69F00; }
+        .risk-regional { background-color: #f8d7da; color: #D55E00; }
+        .risk-global { background-color: #f3e8f1; color: #CC79A7; }
+
+        /* Tooltip/Modal Styling */
+        .tooltip-container { position: relative; display: block; }
+        .info-icon { 
+            margin-left: 4px; 
+            color: #2563eb; 
+            font-weight: bold; 
+            cursor: pointer; 
+            border: 1px solid #2563eb;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.75rem;
+            line-height: 1;
+            flex-shrink: 0; /* Prevents icon from shrinking in flex layouts */
+        }
+        .info-icon:hover {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        /* Modal Overlay and Content for Click Popups */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background-color: var(--card-bg-color);
+            color: var(--text-color-primary);
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 650px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 2px solid #2563eb;
+        }
+        .modal-content p { color: var(--text-color-secondary) !important; }
+        .modal-content .text-green-600 { color: #10b981 !important; }
+        .modal-content .text-red-600 { color: #ef4444 !important; }
+        
+        /* Policy Toggle/Slider Styling (for the range container) */
+        .tooltip-container label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        /* Contagion Matrix Styling - RESPONSIVE */
+        .contagion-matrix-grid {
+            display: none; /* Hidden by default, shown on md+ */
+        }
+        .contagion-list {
+            display: flex; /* Shown by default on mobile */
+            flex-direction: column;
+            gap: 4px;
+        }
+        .contagion-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+        .contagion-list-item span:first-child {
+            font-weight: 600;
+        }
+        @media (min-width: 768px) {
+            .contagion-matrix-grid {
+                display: grid;
+                grid-template-columns: repeat(6, 1fr);
+                gap: 1px;
+                background-color: var(--card-border-color);
+                border-radius: 6px;
+                overflow: hidden;
+                width: 100%;
+            }
+            .contagion-list {
+                display: none;
+            }
+            .matrix-cell, .matrix-header {
+                padding: 8px 4px;
+                text-align: center;
+                font-size: 0.75rem;
+                font-weight: 500;
+                color: var(--text-color-primary);
+                background-color: var(--card-bg-color);
+            }
+            .matrix-header {
+                background-color: var(--control-bg-color);
+                font-weight: 600;
+                color: #2563eb;
+                white-space: normal;
+            }
+            .matrix-cell-label {
+                background-color: var(--control-bg-color);
+                text-align: left;
+                font-weight: 600;
+                padding: 8px;
+                color: #E69F00;
+            }
+        }
+        
+        /* Utility for Contagion Heatmap (Intense colors maintained for data visualization) */
+        .bg-contagion-0 { background-color: rgba(0, 158, 115, 0.1); color: #009E73; } 
+        .bg-contagion-20 { background-color: rgba(230, 159, 0, 0.2); color: #E69F00; }
+        .bg-contagion-40 { background-color: rgba(213, 94, 0, 0.4); color: #D55E00; }
+        .bg-contagion-60 { background-color: rgba(204, 121, 167, 0.6); color: #CC79A7; }
+        .bg-contagion-80 { background-color: rgba(130, 10, 40, 0.9); color: #FFFFFF; } 
+
+        /* Lever Toggle Styling - Updated for Mobile Adaptivity */
+        .lever-item {
+            display: flex;
+            flex-direction: column; /* Mobile-first: stack items */
+            align-items: flex-start; /* Align content to the left */
+            gap: 8px; /* Space between name and controls on mobile */
+            padding: 12px;
+            border: 1px solid var(--card-border-color);
+            background-color: var(--bg-color);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            transition: background-color 0.2s;
+        }
+        .lever-item:hover { background-color: var(--card-border-color); }
+        .lever-name-wrapper { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: space-between;}
+        .lever-name { font-weight: 600; font-size: 0.9rem; color: var(--text-color-primary); flex-grow: 1;}
+        .lever-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        .lever-badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: 500; }
+        
+        /* Desktop layout for levers */
+        @media (min-width: 640px) {
+            .lever-item {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+            }
+             .lever-name-wrapper { width: auto; justify-content: flex-start; }
+            .lever-controls {
+                width: auto;
+                justify-content: flex-end;
+                gap: 16px; /* Space between badge and toggle on desktop */
+            }
+        }
+
+        .badge-diplomacy { background-color: #d1fae5; color: #059669; }
+        .badge-economic { background-color: #fef3c7; color: #d97706; }
+        .badge-military { background-color: #e5e7eb; color: #4b5563; }
+        .badge-humanitarian { background-color: #e0f2f1; color: #0d9488; }
+        
+        /* Simulation Summary */
+        #simulation-summary {
+            background-color: var(--control-bg-color) !important;
+            border: 1px solid var(--card-border-color);
+            color: var(--text-color-primary) !important;
+        }
+        #decision-summary-text.gain {
+            background-color: #d1fae5; /* Green-100 */
+            border-left: 4px solid #059669; /* Green-600 */
+        }
+        #decision-summary-text.loss {
+            background-color: #fee2e2; /* Red-100 */
+            border-left: 4px solid #dc2626; /* Red-600 */
+        }
+        #decision-summary-text.neutral {
+            background-color: var(--control-bg-color);
+            border-left: 4px solid var(--card-border-color);
+        }
+        #decision-summary-text strong {
+            color: var(--text-color-primary);
+        }
+
+        /* Time Horizon Buttons - Increased Detail for Strategic Context */
+        .time-horizon-button {
+            padding: 10px 12px;
+            text-align: center;
+            flex-grow: 1;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            white-space: normal;
+            background-color: var(--tab-active-bg); /* Darker than background */
+            border: 1px solid var(--card-border-color);
+            color: var(--text-color-muted);
+        }
+        .time-horizon-button.active {
+            background-color: var(--card-bg-color); /* White active background */
+            border: 2px solid var(--tab-active-border); /* Blue border for active */
+            color: var(--tab-active-border);
+        }
+        @media (max-width: 640px) {
+            .time-horizon-button {
+                font-size: 0.7rem; /* Smaller font on mobile for multi-line text */
+                padding: 6px 8px;
+            }
+        }
+
+        /* Custom Styling for Key Sector Vulnerability Cards */
+        .vulnerability-card {
+            position: relative;
+            padding: 1rem;
+            background-color: var(--card-bg-color);
+            border-left: 5px solid transparent;
+            transition: border-left 0.3s, background-color 0.3s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .vulnerability-card:hover {
+             background-color: var(--control-bg-color);
+        }
+        .vulnerability-card.extreme { border-left-color: #ef4444; }
+        .vulnerability-card.very-high { border-left-color: #f97316; }
+        .vulnerability-card.high { border-left-color: #facc15; }
+        .vulnerability-card.medium { border-left-color: #3b82f6; }
+        .vulnerability-card.low { border-left-color: #10b981; }
+
+        .vulnerability-card p {
+            color: var(--text-color-primary) !important;
+        }
+        .vulnerability-card .font-mono {
+            color: var(--text-color-secondary) !important;
+        }
+        
+        .title-with-icon {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* New styles for responsive scenario table */
+        @media (max-width: 767px) {
+            .scenario-table thead {
+                display: none;
+            }
+            .scenario-table, .scenario-table tbody, .scenario-table tr {
+                display: block;
+            }
+            .scenario-table tr {
+                border: 1px solid var(--card-border-color);
+                border-radius: 0.5rem;
+                margin-bottom: 1rem;
+                background: var(--card-bg-color);
+                overflow: hidden;
+            }
+            .scenario-table td {
+                display: block; /* Changed to block */
+                padding: 0.75rem 1rem;
+                border-bottom: 1px solid var(--card-border-color);
+                text-align: left;
+            }
+            .scenario-table td:last-child {
+                 border-bottom: none;
+            }
+            .scenario-table td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                display: block; /* Label appears on its own line */
+                margin-bottom: 0.25rem;
+                color: var(--text-color-primary);
+                font-size: 0.75rem;
+                text-transform: uppercase;
+            }
+             /* Special handling for probability to keep it on one line */
+            .scenario-table td[data-label^="Adj. Probability"] {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .scenario-table td[data-label^="Adj. Probability"]::before {
+                display: inline-block;
+                margin-bottom: 0;
+            }
+            .scenario-table td:first-child {
+                background-color: var(--control-bg-color);
+                font-size: 1rem;
+                font-weight: bold;
+                text-align: center;
+                padding: 0.75rem;
+            }
+            .scenario-table td:first-child::before {
+                display: none;
+            }
+        }
+
+    </style>
+</head>
+<body class="text-gray-800">
+    <div id="app" class="min-h-screen p-4 sm:p-6 md:p-8">
+        <!-- MODAL OVERLAY (Initially Hidden) -->
+        <div id="policy-modal-overlay" class="modal-overlay">
+            <div id="policy-modal-content" class="modal-content">
+                <!-- Content injected by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Header and Executive Summary -->
+        <header class="mb-8 pb-4 border-b border-gray-300">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                <div>
+                    <!-- Responsive font sizes for better scaling on mobile -->
+                    <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-700 mb-1">Geopolitical Strategic Foresight Dashboard</h1>
+                    <p class="text-base sm:text-lg text-gray-600">A Global Simulation of Conflict & Policy Impact (2025–2030)</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Interactive Dashboard Section (SECTION I - Regional Modeling) -->
+        <section class="mb-10">
+            <h2 class="text-xl sm:text-2xl font-semibold mb-4 border-l-4 border-blue-600 pl-3">Scenario Modeling & Regional Policy Impact</h2>
+            
+            <!-- Region Selection Tabs -->
+            <div class="flex flex-wrap gap-2 mb-6">
+                <button class="tab-button" data-region="Europe">Europe (Russia-NATO)</button>
+                <button class="tab-button" data-region="Asia">Asia (China/India)</button>
+                <button class="tab-button" data-region="MiddleEast">Middle East (Israel/Iran)</button>
+                <button class="tab-button" data-region="Africa">Africa (Sahel/Horn of Africa)</button>
+                <button class="tab-button" data-region="Americas">Americas (Hemispheric Tensions)</button>
+            </div>
+            
+            <!-- Global Factors Section -->
+            <div id="global-factors-section" class="card p-4 sm:p-6 mb-6">
+                 <h3 class="text-lg sm:text-xl font-bold text-indigo-700 mb-4">Global Factors</h3>
+                 <div id="global-toggles-container">
+                    <!-- BRICS slider will be injected here -->
+                 </div>
+            </div>
+
+
+            <!-- Content Area (Deep Dive & Monte Carlo) -->
+            <div id="region-content" class="card p-4 sm:p-6">
+                <h3 id="region-title" class="text-xl sm:text-2xl font-bold text-blue-700 mb-4">Select a Region for Detailed Analysis</h3>
+                <div id="deep-dive-info" class="text-gray-600 mb-6">
+                    <h5 class="text-lg font-semibold text-purple-700 mb-3">Key Sector Vulnerability</h5>
+                    <div id="vulnerability-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mt-4 text-sm">
+                        <!-- Cards will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Simulation/Toggling Section -->
+                <div id="simulation-section" class="hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Left Panel: Decision Levers & Triggers -->
+                        <div class="p-4 bg-gray-100 rounded-lg">
+                            <h4 class="text-lg sm:text-xl font-bold text-red-600 mb-3">Regional Risk Factors (What-If Lab)</h4>
+                            <div id="toggles-container" class="space-y-4 mb-6">
+                                <p class="text-sm text-gray-500">Select a region to load specific conflict parameters.</p>
+                            </div>
+                            
+                            <!-- Levers are now directly visible -->
+                            <div class="border-t border-gray-300 pt-4">
+                               <h4 class="text-lg sm:text-xl font-bold text-green-600 mb-3">Policy Intervention Levers</h4>
+                                <div id="levers-container" class="space-y-2">
+                                    <!-- Levers will be injected here -->
+                                </div>
+                            </div>
+
+                        </div>
+                        
+                        <!-- Right Panel: Visualizations -->
+                        <div class="p-4 bg-gray-100 rounded-lg">
+                            <div class="space-y-6">
+                                <div class="w-full">
+                                    <div class="title-with-icon">
+                                        <h5 class="font-bold text-base sm:text-lg text-blue-600">Outcome Probability Meter</h5>
+                                        <span class="info-icon" onclick="openExplanationModal('outcome')">?</span>
+                                    </div>
+                                    <p id="comparison-chart-title" class="text-sm text-gray-500 mb-2">Risk Shift: Neutral by 0.0 pp</p>
+                                    <div class="chart-container h-48 w-full">
+                                        <canvas id="outcomeComparisonChart"></canvas>
+                                    </div>
+                                </div>
+
+                                <div class="w-full">
+                                    <div class="title-with-icon">
+                                        <h5 class="font-bold text-base sm:text-lg text-blue-600">Net Policy Delta Score</h5>
+                                        <span class="info-icon" onclick="openExplanationModal('delta')">?</span>
+                                    </div>
+                                     <p class="text-sm text-gray-500 mb-2">Change from Baseline Risk</p>
+                                    <div class="chart-container h-64 w-full">
+                                        <canvas id="impactBreakdownChartCanvas"></canvas>
+                                    </div>
+                                </div>
+
+                                <div class="w-full">
+                                    <div class="title-with-icon">
+                                        <h5 class="font-bold text-base sm:text-lg text-blue-600">Contagion Matrix</h5>
+                                        <span class="info-icon" onclick="openExplanationModal('contagion')">?</span>
+                                    </div>
+                                    <p class="text-sm text-gray-500 mb-2">Cross-Regional Shock Propagation</p>
+                                    <div id="contagion-matrix-container">
+                                        <!-- Matrix will be rendered here -->
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-2">Heat shows the probability of shock propagation (0-100%).</p>
+                                </div>
+                            </div>
+                            <div id="simulation-summary" class="mt-6 p-4 rounded-lg bg-gray-200">
+                                <div class="title-with-icon mb-3">
+                                    <h5 class="font-bold text-base sm:text-lg text-blue-700">Decision Summary & Net Policy Impact</h5>
+                                    <span class="info-icon" onclick="openExplanationModal('summary')">?</span>
+                                </div>
+                            
+                                <!-- Main decision text -->
+                                <div id="decision-summary-text" class="mb-4 p-3 rounded-md text-sm">
+                                    <!-- Populated by JS -->
+                                </div>
+                                
+                                <!-- Key Factors grid -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 text-sm">
+                                    <div class="bg-green-100/50 p-3 rounded-lg border border-green-200">
+                                        <h6 class="font-semibold text-green-700 flex items-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                                            Top Stabilized Factors
+                                        </h6>
+                                        <div id="top-stabilized-factors" class="mt-1 font-mono text-gray-700 text-xs">None</div>
+                                    </div>
+                                    <div class="bg-red-100/50 p-3 rounded-lg border border-red-200">
+                                        <h6 class="font-semibold text-red-700 flex items-center">
+                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>
+                                            Top Escalating Risks
+                                        </h6>
+                                        <div id="top-escalating-risks" class="mt-1 font-mono text-gray-700 text-xs">None</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Key Metrics grid -->
+                                <div class="grid grid-cols-1 gap-3 text-center">
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div class="p-2 rounded-lg bg-gray-200">
+                                            <div class="text-xs font-semibold text-gray-500 flex items-center justify-center">
+                                                <span>P(Global Escalation)</span>
+                                                <span class="info-icon ml-1" onclick="openExplanationModal('global')">?</span>
+                                            </div>
+                                            <div id="global-escalation-metric" class="font-bold text-lg text-red-500">...</div>
+                                        </div>
+                                        <div class="p-2 rounded-lg bg-gray-200">
+                                            <div class="text-xs font-semibold text-gray-500 flex items-center justify-center">
+                                                <span>Net Contagion</span>
+                                                <span class="info-icon ml-1" onclick="openExplanationModal('netcontagion')">?</span>
+                                            </div>
+                                            <div id="net-contagion-metric" class="font-bold text-lg text-blue-500">...</div>
+                                        </div>
+                                    </div>
+                                    <div class="p-2 rounded-lg bg-gray-200">
+                                        <div class="text-xs font-semibold text-gray-500 flex items-center justify-center">
+                                            <span>Top Factor Shift</span>
+                                            <span class="info-icon" onclick="openExplanationModal('factors')">?</span>
+                                        </div>
+                                        <div id="impact-breakdown-metric" class="font-bold text-lg">...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scenario Tree and Advisory Table -->
+                    <div class="mt-8">
+                        <h4 class="text-lg sm:text-xl font-semibold mb-3 border-b border-gray-300 pb-2">Strategic Outlook by Time Horizon</h4>
+                        <div id="time-horizon-tabs" class="flex space-x-1 sm:space-x-2 mb-4 border-b border-gray-300 -mx-4 px-4 overflow-x-auto">
+                            <!-- Tactical Crisis Management -->
+                            <button class="time-horizon-button active" data-horizon="3-6M">
+                                <span class="font-bold block sm:inline">3-6M:</span> Tactical Crisis
+                            </button>
+                            <!-- Mid-Term Deterrence Consolidation -->
+                            <button class="time-horizon-button" data-horizon="6-12M">
+                                <span class="font-bold block sm:inline">6-12M:</span> Mid-Term Deterrence
+                            </button>
+                            <!-- Intermediate Structural Realignment -->
+                            <button class="time-horizon-button" data-horizon="1-3Y">
+                                <span class="font-bold block sm:inline">1-3Y:</span> Structural Realignment
+                            </button>
+                            <!-- Strategic Great Power Competition -->
+                            <button class="time-horizon-button" data-horizon="3-5Y">
+                                <span class="font-bold block sm:inline">3-5Y:</span> Strategic Competition
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto card p-2 sm:p-4">
+                            <table class="scenario-table min-w-full">
+                                <thead>
+                                    <tr class="bg-gray-100 text-xs uppercase tracking-wider text-gray-600">
+                                        <th class="px-2 py-2 sm:px-4 sm:py-2 text-left w-[25%]">Scenario</th>
+                                        <th class="px-2 py-2 sm:px-4 sm:py-2 text-left w-[20%]" id="prob-header">Adj. Probability (3-6M)</th>
+                                        <th class="px-2 py-2 sm:px-4 sm:py-2 text-left w-[25%]" id="trigger-header">Triggers/Indicators</th>
+                                        <th class="px-2 py-2 sm:px-4 sm:py-2 text-left w-[30%]" id="advisory-header">Strategic Advisory</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="scenario-table-body" class="divide-y divide-gray-300 text-sm">
+                                    <!-- Scenarios will be injected here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-12 pt-6 border-t border-gray-300 text-center">
+            <p class="text-sm text-gray-500">
+                &copy; 2025 Ryan Elcock. All Rights Reserved.
+            </p>
+            <p class="text-xs text-gray-400 mt-2 max-w-3xl mx-auto text-left sm:text-center">
+                <strong>Disclaimer:</strong> This dashboard is a simulation for educational and analytical purposes only. The scenarios and data are illustrative and do not constitute financial, investment, or geopolitical advice.
+            </p>
+        </footer>
+
+    </div>
+
+    <!-- JavaScript for Data and Interactivity -->
+    <script>
+        let outcomeComparisonChart;
+        let impactBreakdownChart; 
+        
+        // --- 1. Global Data Structure ---
+
+        // Check if Chart and ChartAnnotation are defined before attempting to register
+        if (typeof Chart !== 'undefined' && typeof ChartAnnotation !== 'undefined') {
+            try {
+                Chart.register(ChartAnnotation);
+            } catch (e) {
+                console.error("Error registering ChartAnnotation:", e);
+            }
+        }
+        
+        const SCENARIO_ITERS = 75000; 
+        let currentRegion = 'Europe';
+        let currentTimeHorizon = '3-6M';
+        let activeLevers = {}; // Tracks toggled levers
+        let lastCalculatedAvgRisk = 0; // BUG FIX: Store the last calculated risk score
+
+        // Okabe–Iito inspired color palette for accessibility
+        const IMPACT_COLORS = {
+            'Fuel': '#E69F00',      // Orange (High volatility, choke point risk)
+            'Minerals': '#0072B2',  // Blue (Supply concentration)
+            'Gold': '#F0E442',      // Yellow/Gold (Safe haven/Liquidity) 
+            'Markets': '#CC79A7',   // Pink (Financial Equities/Debt)
+            'Stability': '#009E73',  // Green (Migration/Governance)
+            'Agriculture': '#56B4E9' // Sky Blue (Water/Climate dependency)
+        };
+        
+        // Define Risk Classes and Score Thresholds
+        const RISK_CLASSES = {
+            'Win-Win Stabilization': { color: '#009E73', minScore: 4.0, maxScore: 6.0 }, // Green
+            'Contained Conflict': { color: '#E69F00', minScore: 6.0, maxScore: 7.5 }, // Orange/Amber
+            'Regional War': { color: '#D55E00', minScore: 7.5, maxScore: 9.0 }, // Red
+            'Global Escalation': { color: '#CC79A7', minScore: 9.0, maxScore: 10.0 } // Crimson
+        };
+        
+        const VULNERABILITY_CARD_CLASS_MAP = {
+            'Extreme': 'extreme', 
+            'Very High': 'very-high', 
+            'High': 'high', 
+            'Medium-High': 'very-high',
+            'Medium': 'medium', 
+            'Low': 'low'
+        };
+
+        const VULNERABILITY_INDICATOR_CLASS_MAP = {
+            'Extreme': 'risk-regional',
+            'Very High': 'risk-regional',
+            'High': 'risk-contained',
+            'Medium-High': 'risk-contained',
+            'Medium': 'risk-winwin',
+            'Low': 'risk-winwin'
+        };
+
+        const CONTAGION_CHANNELS = ['Energy', 'Shipping', 'Alliances', 'Markets', 'Cyber'];
+
+        const CONTAGION_IMPACT_MAP = {
+            Europe: { Energy: 0.25, Shipping: 0.15, Alliances: 0.40, Markets: 0.10, Cyber: 0.10, Migration: 0.20 },
+            Asia: { Energy: 0.20, Shipping: 0.35, Alliances: 0.25, Markets: 0.10, Cyber: 0.20, Migration: 0.10 },
+            MiddleEast: { Energy: 0.40, Shipping: 0.30, Alliances: 0.20, Markets: 0.15, Cyber: 0.05, Migration: 0.15 },
+            Africa: { Energy: 0.05, Shipping: 0.05, Alliances: 0.10, Markets: 0.25, Cyber: 0.05, Migration: 0.40 },
+            Americas: { Energy: 0.20, Shipping: 0.10, Alliances: 0.20, Markets: 0.35, Cyber: 0.15, Migration: 0.30 }
+        };
+        
+        const globalToggles = [
+             { id: 'BRICS_Cohesion', label: 'BRICS Cohesion & Economic Power', min: 10, max: 90, default: 50, desc: "Measures the political unity and economic leverage of the BRICS+ bloc. A high score signifies a more coordinated challenge to G7 financial and diplomatic influence, reducing the impact of sanctions and creating alternative trade/security frameworks." }
+        ];
+
+        const decisionLevers = {
+            Europe: [
+                { id: 'US_RUSSIA_PEACE_DEAL', name: 'US-Russia "Peace Deal" (Ukraine)', type: 'Diplomacy', impact: { Stability: 0.15, Markets: -0.15, Fuel: -0.10, Contagion: -10.0 }, desc: "Represents a bilateral US-Russia agreement to freeze the conflict in Ukraine. While this reduces immediate kinetic risk and market volatility, it risks solidifying Russian territorial gains and causing a severe political crisis within NATO, increasing long-term alliance fragmentation risk." },
+                { id: 'LNG_SURGE', name: 'LNG Surge to Japan/ROK', type: 'Economic', impact: { Fuel: -0.15, Markets: -0.05, Contagion: -10.0 }, desc: "Increases non-Russian energy reliability for key partners, reducing market risk but slightly escalating tensions." },
+                { id: 'NATO_CYBER_ARTICLE', name: 'NATO Article 5 Clarification (Cyber)', type: 'Diplomacy', impact: { Stability: -0.10, Markets: 0.08, Contagion: -5.0 }, desc: "Formal commitment on cyber defense deters low-level attacks but may temporarily raise the risk premium due to clearer red lines." },
+                { id: 'CANADA_EU_PACT', name: 'Canada-EU Supply Pact (Defense)', type: 'Economic', impact: { Markets: -0.10, Minerals: -0.05, Contagion: -8.0 }, desc: "Secures alternative supply routes for critical defense materials, stabilizing supply chain risk." },
+                { id: 'BLACK_SEA_SECURITY', name: 'Black Sea Security Initiative', type: 'Military', impact: { Agriculture: -0.20, Stability: -0.10, Markets: 0.05, Contagion: -10.0 }, desc: 'Establishes a NATO-led multinational naval presence to escort grain shipments and deter Russian aggression in the Black Sea, securing global food supplies but raising the risk of direct naval incidents.'},
+                { id: 'EU_GREEN_ACCEL', name: 'EU Green Energy Acceleration', type: 'Economic', impact: { Fuel: -0.25, Minerals: 0.10, Markets: -0.10, Contagion: -15.0 }, desc: 'A massive, coordinated investment program to fast-track renewable energy projects and non-Russian critical mineral supply chains, permanently reducing energy dependence on Russia.'}
+            ],
+            Asia: [
+                { id: 'US_CHINA_DIALOGUE', name: 'US-China Strategic Dialogue', type: 'Diplomacy', impact: { Stability: -0.15, Markets: -0.10, Contagion: -12.0 }, desc: "Re-establishes high-level diplomatic and military-to-military communication channels to manage competition, prevent miscalculation, and build guardrails around key flashpoints like Taiwan." },
+                { id: 'QUAD_NAVAL_EXERCISES', name: 'Quad Joint Naval Exercises', type: 'Military', impact: { Stability: 0.05, Markets: -0.10, Contagion: -10.0 }, desc: "Conducts large-scale joint naval exercises involving the Quad nations (US, Japan, Australia, India) in the South China Sea and Indian Ocean. This serves as a major deterrent to Chinese aggression but can be perceived as provocative, raising short-term tensions." },
+                { id: 'IPEF_INVESTMENT', name: 'IPEF Trade & Infrastructure Investment', type: 'Economic', impact: { Markets: -0.15, Stability: -0.10, Minerals: -0.05, Contagion: -12.0 }, desc: "Accelerates investment through the Indo-Pacific Economic Framework, funding high-standard infrastructure and digital trade projects in Southeast Asia as a direct alternative to China's Belt and Road Initiative." },
+                { id: 'INDIA_PAK_DEESCALATE', name: 'India-Pakistan De-escalation Dialogue', type: 'Diplomacy', impact: { Stability: -0.15, Markets: -0.05, Contagion: -8.0 }, desc: "Initiates a high-level diplomatic track, led by the US and other Quad members, to mediate between India and Pakistan during a crisis, aiming to de-escalate border tensions and prevent a wider conflict." },
+                { id: 'CANADA_ASEAN_PARTNERSHIP', name: 'Canada-ASEAN Strategic Partnership', type: 'Economic', impact: { Markets: -0.05, Stability: -0.05, Contagion: -5.0 }, desc: "Strengthens Canada's economic and diplomatic ties with ASEAN nations, providing modest but meaningful diversification of supply chains and bolstering regional stability." }
+            ],
+            MiddleEast: [
+                { id: 'ABRAHAM_ACCORDS_EXPAND', name: 'Expand Abraham Accords (Saudi-Israel)', type: 'Diplomacy', impact: { Stability: -0.20, Markets: -0.15, Contagion: -15.0 }, desc: "Secures a landmark normalization agreement between Israel and Saudi Arabia, creating a powerful new strategic bloc that isolates Iran and stabilizes regional energy and financial markets." },
+                { id: 'LEBANON_BORDER_DEESCALATE', name: 'Lebanon Border De-escalation (UNIFIL+)', type: 'Military', impact: { Stability: -0.10, Fuel: -0.05, Contagion: -8.0 }, desc: "Increases the mandate and troop presence of the UNIFIL mission on the Israel-Lebanon border, creating a more robust buffer zone to deter Hezbollah attacks and prevent miscalculation." },
+                { id: 'GULF_RECON_FUND', name: 'Gulf Reconstruction Fund (Gaza)', type: 'Humanitarian', impact: { Stability: -0.15, Markets: -0.08, Agriculture: -0.10, Contagion: -5.0 }, desc: "A major financial commitment to Gaza reconstruction provides economic stability and reduces the incentive for radicalization." },
+                { id: 'RED_SEA_SECURITY', name: 'Red Sea Maritime Security Initiative', type: 'Military', impact: { Fuel: -0.20, Markets: -0.10, Stability: 0.05, Contagion: -12.0 }, desc: "Establishes a multinational naval task force to actively protect commercial shipping in the Red Sea and Gulf of Aden, directly countering Houthi threats and ensuring freedom of navigation." },
+                { id: 'JOINT_CYBER_DEFENSE', name: 'Joint Cyber Defense Pact (US-GCC-Israel)', type: 'Military', impact: { Stability: -0.15, Markets: -0.10, Contagion: -10.0 }, desc: "Creates a formal intelligence-sharing and joint-defense framework between the US, key Gulf states, and Israel to counter Iranian-backed cyber attacks on critical infrastructure." },
+                { id: 'IRAN_GRAND_BARGAIN', name: 'Iran Nuclear "Grand Bargain"', type: 'Diplomacy', impact: { Gold: -0.25, Fuel: -0.20, Markets: -0.15, Stability: -0.20, Contagion: -25.0 }, desc: "Initiates a comprehensive diplomatic effort for a 'more-for-more' nuclear deal with Iran, trading significant sanctions relief for verifiable, long-term limits on its nuclear program and regional activity." }
+            ],
+            Africa: [
+                { id: 'SAHEL_CT_FORCE', name: 'Sahel Joint Counter-Terrorism Force', type: 'Military', impact: { Stability: -0.15, Agriculture: -0.10, Markets: 0.05, Contagion: -10.0 }, desc: "Models a coordinated, multinational military effort (e.g., G5 Sahel+) to degrade terrorist capabilities (Boko Haram, JNIM), improving local stability and food security but risking mission creep and regional escalation." },
+                { id: 'HORN_FOOD_SECURITY', name: 'Horn of Africa Food Security Program', type: 'Humanitarian', impact: { Agriculture: -0.20, Stability: -0.15, Markets: -0.05, Contagion: -12.0 }, desc: "A major international aid and investment program focused on sustainable farming, water management, and climate resilience in the Horn of Africa, directly countering the instability exploited by groups like Al-Shabaab and reducing famine risk." },
+                { id: 'WESTERN_GOV_PACTS', name: 'Western Governance & Security Pacts', type: 'Diplomacy', impact: { Stability: -0.12, Markets: -0.08, Contagion: -8.0 }, desc: "A concerted diplomatic and security assistance effort by Western nations to offer African partners a compelling alternative to Russian/Chinese influence, focusing on institution-building, transparency, and professional military education." },
+                { id: 'LOBITO_INVEST', name: 'Critical Mineral Investment (Lobito Corridor)', type: 'Economic', impact: { Minerals: -0.20, Stability: -0.10, Contagion: -15.0 }, desc: "A major G7-backed investment in the Lobito Corridor to secure non-Chinese supply chains for cobalt and copper from DRC and Zambia." },
+                { id: 'AFCFTA_IMPLEMENT', name: 'Accelerate AfCFTA Implementation', type: 'Economic', impact: { Markets: -0.15, Stability: -0.10, Agriculture: -0.10, Contagion: -10.0 }, desc: "Fast-tracks the African Continental Free Trade Area, boosting intra-African trade and creating resilient, local supply chains." }
+            ],
+            Americas: [
+                { id: 'OAS_MEDIATION', name: 'OAS Mediation (Venezuela-Guyana)', type: 'Diplomacy', impact: { Stability: -0.10, Fuel: -0.05, Contagion: -7.0 }, desc: "Regional diplomatic intervention designed to defuse border tensions and protect vital oil and gas interests in the Caribbean basin." },
+                { id: 'CANADA_MEXICO_PARTNERSHIP', name: 'Canada-Mexico Strategic Partnership', type: 'Diplomacy', impact: { Stability: -0.10, Markets: -0.10, Minerals: -0.05, Contagion: -8.0 }, desc: "A bilateral agreement to deepen Canada-Mexico economic integration, creating joint supply chains and trade corridors that are less reliant on the US market and logistical hubs." },
+                { id: 'CARICOM_SECURITY', name: 'CARICOM Security Integration', type: 'Diplomacy', impact: { Stability: -0.15, Markets: -0.05, Contagion: -10.0 }, desc: "Supports a CARICOM-led, US/Canada-backed regional security framework to address crises like Haiti, enhancing regional autonomy and stability." },
+                { id: 'HAITI_SEC_GOV_FUND', name: 'Haiti Security & Governance Fund', type: 'Humanitarian', impact: { Stability: -0.12, Markets: -0.05, Contagion: -8.0 }, desc: "Targeted funds to professionalize Haitian National Police and support a transitional governance council, reducing gang control and migration pressure." },
+                { id: 'MIGRATION_PACT_CENAM', name: 'Central America Migration Pact', type: 'Economic', impact: { Stability: -0.10, Markets: -0.05, Agriculture: -0.05, Contagion: -6.0 }, desc: "A US/Canada/Mexico pact providing targeted investment in Central American countries to address the root causes of migration, reducing border instability." },
+                { id: 'LITHIUM_INVEST', name: 'Lithium Triangle Investment (Chile)', type: 'Economic', impact: { Minerals: -0.05, Markets: -0.05, Contagion: -4.0 }, desc: "Strategic investment to secure alternative non-Chinese lithium supplies, adding resilience to the EV supply chain." },
+                { id: 'US_CNT_DRUG_OPS', name: 'US Counter-Drug Ops (Mexico/Colombia)', type: 'Military', impact: { Stability: 0.25, Markets: 0.20, Contagion: 20.0 }, desc: "Initiates direct US military operations against cartels within Mexico or Colombia, a high-risk move that could fracture diplomatic relations and spark wider conflict." }
+            ]
+        };
+
+        const regionalData = {
+            Europe: {
+                title: "Europe: Russia-NATO Confrontation & Alliance Fragmentation", baselineProb: 0.45,
+                toggles: [
+                    { id: 'NATO_Cohesion', label: 'NATO Political Cohesion', min: 10, max: 90, default: 75, multiplier: -0.02, impact: 'Markets', desc: "Measures internal unity (EU/US/Canada alignment). High score reduces market risk premium and instability." },
+                    { id: 'Political_Fragmentation_EU', label: 'Political Fragmentation (EU/NATO)', min: 10, max: 90, default: 40, multiplier: 0.025, impact: 'Stability', desc: "Models the rise of nationalist/right-wing governments and 'nation-first' policies that weaken EU/NATO cohesion, reduce the effectiveness of collective action (like sanctions), and create openings for Russian influence." },
+                    { id: 'Hybrid_Warfare_Seabed', label: 'Hybrid Warfare (Seabed/Cyber)', min: 10, max: 90, default: 60, multiplier: 0.03, impact: 'Fuel', desc: "Rate of gray-zone acts targeting undersea infrastructure (pipelines, cables) and cyber attacks on critical networks. High score raises systemic risk to energy and communications." },
+                    { id: 'NATO_Airspace_Violations', label: 'NATO Airspace Violations', min: 10, max: 90, default: 50, multiplier: 0.025, impact: 'Stability', desc: "Frequency and severity of Russian drone and aircraft incursions into or near NATO airspace, particularly over the Baltic and Black Seas. High score increases risk of miscalculation and accidental escalation." },
+                    { id: 'Arctic_Militarization', label: 'Arctic Militarization (Russia)', min: 10, max: 90, default: 45, multiplier: 0.02, impact: 'Fuel', desc: "Russian military buildup and assertive posture in the High North, aimed at controlling the Northern Sea Route and energy resources. High score opens a new front of strategic competition." },
+                    { id: 'EU_Defense_Spend', label: 'EU Readiness', min: 10, max: 90, default: 50, multiplier: -0.015, impact: 'Stability', desc: "Level of autonomous defense investment and stockpiling (Readiness). High score increases long-term stability/deterrence." }
+                ],
+                scenarios: {
+                    '3-6M': [
+                        { name: 'Controlled Escalation', baseProb: 0.45, trigger: 'Spillover from Ukraine conflict; Consistent weekly airspace violations; Cyber sabotage on non-critical targets.', advisory: 'Reinforce containment of Ukraine war; Clarify Article 5 Cyber/Seabed thresholds; Sustain high readiness posture.' },
+                        { name: 'Limited Kinetic War', baseProb: 0.20, trigger: 'Miscalculation in Ukraine leads to kinetic attack on NATO territory; Russian mobilization >200k troops.', advisory: 'Execute pre-planned crisis response; Secure alternative energy supply immediately; Prevent wider escalation.' },
+                        { name: 'NATO Fragmentation', baseProb: 0.05, trigger: '"Ukraine Fatigue" leads to rise of nationalist governments challenging alliance commitments; Formal US NATO withdrawal threat.', advisory: 'Accelerate EU Strategic Autonomy; Deepen Canada-EU Defense Axis; Launch public campaigns to reinforce alliance unity.' }
+                    ],
+                    '6-12M': [
+                        { name: 'Protracted Frozen Conflict', baseProb: 0.55, trigger: 'Stalemate holds in Ukraine; NATO rearmament solidifies Eastern flank; Sweden fully integrated.', advisory: 'Focus on defense industrial base acceleration (155mm, missiles); Manage "Ukraine Fatigue" and political fragmentation.' },
+                        { name: 'Escalation to Crisis', baseProb: 0.25, trigger: 'Russia miscalculates in Ukraine (e.g. missile hits Polish territory); US pivot to Asia causes allied panic.', advisory: 'Maintain Article 5 credibility; Increase defense co-production; Launch diplomatic initiatives to reinforce alliance unity.' },
+                        { name: 'Political Détente Opening', baseProb: 0.10, trigger: 'Internal Russian leadership change; Secret ceasefire talks on Ukraine mediated by Turkey/China.', advisory: 'Establish clear, verifiable terms for sanctions relief; Prioritize Ukraine reconstruction planning.' }
+                    ],
+                    '1-3Y': [
+                         { name: 'Protracted Containment (Iron Curtain 2.0)', baseProb: 0.65, trigger: 'Russia remains aggressive; Ukraine stays divided; Europe settles into long-term standoff.', advisory: 'Accelerate reshoring of strategic industries (semiconductors, minerals); Permanent full-spectrum hybrid defense posture.' },
+                         { name: 'Controlled Détente & Fragmentation', baseProb: 0.20, trigger: 'Russia threat diminishes; US disengages; Internal NATO cohesion weakens due to diverging interests and nationalist politics.', advisory: 'Prepare for post-NATO security architecture; Manage political fallout from resuming limited trade with Russia.' },
+                         { name: 'Wider European War', baseProb: 0.10, trigger: 'Russian attack on Baltic state or Moldova; Strategic infrastructure destroyed (major power response).', advisory: 'Focus on military survivability and resource allocation. (Avoid at all costs).' }
+                    ],
+                    '3-5Y': [
+                        { name: 'New Cold War (Baseline)', baseProb: 0.70, trigger: 'Russia stabilizes under sanctions; Europe fully decoupled from Russian energy/gas (zero pipeline flows).', advisory: 'Permanent 3%+ GDP defense spending; Solidify tech decoupling; Prepare for chronic cyber conflict.' },
+                        { name: 'Peace & Reconstruction Dividend', baseProb: 0.15, trigger: 'Formal peace treaty in Ukraine; Russia regime change opens dialogue with West.', advisory: 'Massive investment in Ukraine/European energy grid; Focus on critical mineral recycling and domestic sourcing.' },
+                        { name: 'Bloc War Scenario', baseProb: 0.10, trigger: 'Failure of collective response due to political fragmentation; NATO Article 5 invoked; China/Russia formal military pact.', advisory: 'Focus entirely on military survivability and resource allocation. (Avoid at all costs).' }
+                    ]
+                },
+                impacts: {
+                    Fuel: { baseline: 6.5, volatility: 2.0, commodity: 'Gas/Diesel Cracks', concentration: 0.5, risk: 'Medium-High' },
+                    Minerals: { baseline: 7.0, volatility: 1.5, commodity: 'Uranium/Cobalt', concentration: 0.3, risk: 'Medium' },
+                    Gold: { baseline: 8.5, volatility: 0.5, commodity: '$ Gold/Euro', concentration: 0.0, risk: 'High' },
+                    Markets: { baseline: 7.5, volatility: 1.8, commodity: 'Equities/Bonds', concentration: 0.0, risk: 'Medium-High' },
+                    Stability: { baseline: 7.0, volatility: 1.5, commodity: 'Migration/Governance', concentration: 0.0, risk: 'Medium' },
+                    Agriculture: { baseline: 7.0, volatility: 1.5, commodity: 'Grain/Fertilizer', concentration: 0.6, risk: 'Medium-High' }
+                }
+            },
+            Asia: {
+                title: "Asia: Great Power Competition & Regional Flashpoints",
+                baselineProb: 0.50,
+                toggles: [
+                    { id: 'Taiwan_Independence_Signal', label: 'Taiwan Status Signal', min: 10, max: 90, default: 30, multiplier: 0.04, impact: 'Minerals', desc: "Any move toward formal independence/sovereignty recognition. High score increases risk of Chinese blockade/invasion." },
+                    { id: 'China_Russia_Coordination', label: 'R-C Airborne Training', min: 10, max: 90, default: 80, multiplier: 0.035, impact: 'Markets', desc: "Level of military/technical integration (e.g., Russian airborne training for PLA). High score raises complexity/impact of Taiwan contingency." },
+                    { id: 'India_Pakistan_Flashpoint', label: 'India-Pakistan Flashpoint', min: 10, max: 90, default: 65, multiplier: 0.03, impact: 'Stability', desc: "Tensions over Kashmir and cross-border terrorism. High score increases risk of a conventional conflict between the two nuclear-armed powers, with major implications for regional stability and markets." },
+                    { id: 'India_Internal_Instability', label: 'Internal Indian Instability', min: 10, max: 90, default: 50, multiplier: 0.02, impact: 'Stability', desc: "Level of internal sectarian tensions and separatist movements within India. High score can distract from external threats and reduce regional stability." },
+                    { id: 'SCS_Confrontation', label: 'South China Sea Confrontation', min: 10, max: 90, default: 55, multiplier: 0.03, impact: 'Fuel', desc: "Level of naval/coast guard standoffs in the SCS (e.g., Philippines, Vietnam). High score disrupts shipping lanes, raising fuel and market risk." },
+                    { id: 'DPRK_Provocation_Level', label: 'North Korea Provocation Level', min: 10, max: 90, default: 70, multiplier: 0.025, impact: 'Stability', desc: "Frequency and range of DPRK missile tests, bellicose rhetoric, and border incidents. High score increases the risk of a limited conflict on the Korean Peninsula, diverting US/ROK/Japanese assets and raising regional market volatility." }
+                ],
+                scenarios: {
+                    '3-6M': [
+                        { name: 'Prolonged Ambiguity', baseProb: 0.50, trigger: 'Sustained gray-zone coercion; Economic pressure; No major change in U.S. policy.', advisory: 'Deepen U.S./Japan/ROK trilateral missile defense; Accelerate CHIPS Act implementation.' },
+                        { name: 'Blockade/Quarantine', baseProb: 0.15, trigger: 'China declares naval quarantine; Direct attack on SCS ally vessel (e.g., Philippines, Vietnam, Japan).', advisory: 'Prepare for immediate naval intervention/escorts; Impose total economic embargo on China.' },
+                        { name: 'Regional Conflict (India-Pak)', baseProb: 0.10, trigger: 'Major terror attack traced to Pakistan; Major LoC violation in Kashmir; Indian military mobilization.', advisory: 'Activate US/China diplomatic channels to de-escalate; Prepare for regional market shock.' }
+                    ],
+                    '6-12M': [
+                        { name: 'Tense Deterrence (Stalemate)', baseProb: 0.60, trigger: 'ROC election passes without major incident; US confirms continued deterrence policy; No major DPRK provocations.', advisory: 'Focus on Taiwan’s asymmetric defenses; Deepen Quad intelligence sharing; Reinforce US-ROK-Japan trilateral coordination.' },
+                        { name: 'SCS Clash Escalation', baseProb: 0.20, trigger: 'Casualties from China-Philippines collision; China seizes an uninhabited island.', advisory: 'Invoke US-Philippines MDT (Limited); Coordinate immediate diplomatic off-ramps via ASEAN.' },
+                        { name: 'DPRK Nuclear Test', baseProb: 0.15, trigger: 'Confirmed 7th nuclear test (Punggye-ri); ICBM test over Japan.', advisory: 'Deploy more US strategic assets (B-52s, subs); Sanction DPRK customers (avoiding China).' }
+                    ],
+                    '1-3Y': [
+                        { name: 'Cold Confrontation & Arms Race', baseProb: 0.55, trigger: 'China completes 2027 military modernization goal; US/Japan/ROK solidify full military integration.', advisory: 'Focus on developing counter-blockade strategies; Prepare for proxy conflicts in vulnerable states (e.g., Myanmar, Pacific Islands).' },
+                        { name: 'Limited Conflict (Outlying Islands)', baseProb: 0.25, trigger: 'China seizes Kinmen/Pratas; Significant cyber-attack on US mainland infrastructure.', advisory: 'Establish deterrence red lines on US territory/assets; Total economic embargo on China; Avoid full regional war.' },
+                        { name: 'Strategic Dialogue & Détente', baseProb: 0.15, trigger: 'US/China establish reliable military hotlines; Taiwan accepts tacit "no formal independence" deal.', advisory: 'Allows for limited cooperation on climate/pandemic; Sustained high defense spending remains.' }
+                    ],
+                    '3-5Y': [
+                        { name: 'Technological Decoupling', baseProb: 0.50, trigger: 'Semiconductor supply chain fully bifurcated (China vs. West); China meets 2027 military modernization goal.', advisory: 'Permanent China risk premium in markets; Focus on friend-shoring and non-Chinese rare earth processing.' },
+                        { name: 'Full Regional War', baseProb: 0.20, trigger: 'Chinese invasion of Taiwan; US intervenes directly (regional war).', advisory: 'Global economic collapse; Immediate resource rationing; Focus on military survivability.' },
+                        { name: 'Cold Peace/Dialogue', baseProb: 0.15, trigger: 'US/China establish reliable military hotlines; Taiwan accepts tacit "no formal independence" deal.', advisory: 'Allows for limited cooperation on climate/pandemic; Sustained high defense spending remains.' }
+                    ]
+                },
+                impacts: {
+                    Fuel: { baseline: 8.0, volatility: 1.5, commodity: 'LNG/Oil Shipping', concentration: 0.8, risk: 'Very High' },
+                    Minerals: { baseline: 9.5, volatility: 1.0, commodity: 'Semiconductors/REEs', concentration: 0.9, risk: 'Extreme' },
+                    Gold: { baseline: 8.5, volatility: 0.5, commodity: '$ Gold/Yen', concentration: 0.0, risk: 'High' },
+                    Markets: { baseline: 9.0, volatility: 2.5, commodity: 'Asian Equities/Tech', concentration: 0.0, risk: 'Very High' },
+                    Stability: { baseline: 8.0, volatility: 1.5, commodity: 'Migration/Governance', concentration: 0.0, risk: 'Very High' },
+                    Agriculture: { baseline: 7.5, volatility: 1.8, commodity: 'Rice/Soybeans', concentration: 0.5, risk: 'High' }
+                }
+            },
+            MiddleEast: {
+                title: "Middle East: Israel-Gaza Conflict, West Bank & Iran Arc",
+                baselineProb: 0.40,
+                toggles: [
+                    { id: 'Gaza_Ceasefire_Stability', label: 'Gaza Ceasefire Stability', min: 10, max: 90, default: 25, multiplier: -0.025, impact: 'Stability', desc: "Likelihood of the current ceasefire holding. A low score indicates high fragility due to violations or political breakdown, significantly increasing short-term conflict risk." },
+                    { id: 'Iran_Nuclear_Enrichment', label: 'Iran Enrichment %', min: 60, max: 95, default: 85, multiplier: 0.03, impact: 'Gold', desc: "Uranium enrichment level (up to 90% weapons-grade). High score increases Israel/US strike risk and gold price volatility." },
+                    { id: 'Red_Sea_Chokepoint_Risk', label: 'Red Sea Closure Risk', min: 10, max: 90, default: 55, multiplier: 0.04, impact: 'Fuel', desc: "Houthi/Iranian actions threatening commercial shipping. High score raises bunker fuel/freight costs globally." },
+                    { id: 'West_Bank_Flashpoint', label: 'West Bank Flashpoint', min: 10, max: 90, default: 75, multiplier: 0.035, impact: 'Stability', desc: "Measures violence between settlers/military and Palestinians. A high score models widespread unrest, raising the probability of a Third Intifada, regional instability, and ceasefire collapse." },
+                    { id: 'PA_Governance_Score', label: 'PA Governance Score', min: 10, max: 90, default: 35, multiplier: -0.02, impact: 'Markets', desc: "Capacity of the Palestinian Authority to manage Gaza transition. Low score increases chaos risk and market aversion." }
+                ],
+                scenarios: {
+                    '3-6M': [
+                        { name: 'Fragile Peace Holds (Gaza)', baseProb: 0.40, trigger: 'Successful hostage/prisoner exchange; Aid surge sustains 600 trucks/day; No major West Bank unrest.', advisory: 'Support Egypt-Qatar CMCC; Focus on Gaza governance transition; Resume Saudi-Israel normalization talks.' },
+                        { name: 'Ceasefire Collapse', baseProb: 0.35, trigger: 'Exchange breakdown; Major terror attack (10+ fatalities); West Bank uprising.', advisory: 'Isolate West Bank conflict; Implement immediate military de-escalation protocols; Ring-fence Red Sea access.' },
+                        { name: 'Regional War Expansion', baseProb: 0.10, trigger: 'Iran crosses nuclear threshold; Full-scale Hezbollah launch; Strait of Hormuz threat.', advisory: 'Pre-position U.S. naval assets; Initiate back-channel Oman talks; Coordinate global strategic reserve release.' }
+                    ],
+                    '6-12M': [
+                        { name: 'Saudi-Israel Normalization', baseProb: 0.45, trigger: 'Formal normalization deal announced with U.S. security guarantees; PA leadership transition begins.', advisory: 'Prioritize regional integration projects (energy/infra); Contain spoilers (Hezbollah/Iran proxies).' },
+                        { name: 'Iran Strike Scenario', baseProb: 0.20, trigger: 'IAEA expelled; Iran begins 90% enrichment; Israel conducts preemptive strike.', advisory: 'Immediate diplomatic push to prevent Hormuz closure; Prepare for triple-digit oil prices and supply shock.' },
+                        { name: 'GCC-Iran Deconfliction', baseProb: 0.15, trigger: 'Iran/Saudi security talks strengthen (China/Oman-mediated); Yemen peace treaty signed.', advisory: 'Shift US focus from containment to offshore balancing; Reduce regional military footprint.' }
+                    ],
+                    '1-3Y': [
+                        { name: 'Nuclear Threshold Dilemma', baseProb: 0.50, trigger: 'Iran maintains "threshold" nuclear status (90% enrichment capability); US/Israel continue covert sabotage.', advisory: 'Accept long-term shadow war; Invest in regional missile defense; Focus on sanctions enforcement outside of humanitarian goods.' },
+                        { name: 'Grand Bargain Détente', baseProb: 0.25, trigger: 'New, more pragmatic Iranian leadership emerges; US/Iran strike comprehensive nuclear-for-sanctions-relief deal.', advisory: 'Prepare for massive FDI influx into Iran; Stabilize regional oil flows; Focus on counter-terrorism efforts in a less volatile environment.' },
+                        { name: 'Regional War & Proliferation', baseProb: 0.15, trigger: 'Iran successfully tests a nuclear device; Full-scale Israel/Hezbollah war; US military assets directly targeted.', advisory: 'Prepare for global economic recession; Focus on preventing weapons proliferation to non-state actors.' }
+                    ],
+                    '3-5Y': [
+                        { name: 'New Regional Order/Integration', baseProb: 0.60, trigger: 'Successful Gaza reconstruction; Israel at peace with key Arab states; Iran contained via new nuclear framework.', advisory: 'Focus on climate change adaptation (water/energy); Promote tech/finance integration across the Levant/Gulf.' },
+                        { name: 'Nuclear Arms Race', baseProb: 0.15, trigger: 'Iran successfully tests a nuclear device; Saudi/Turkey signal intent to acquire own nuclear capability.', advisory: 'Shift global focus to WMD non-proliferation; Prepare for multi-state deterrence system (highly unstable).' },
+                        { name: 'Climate/Governance Collapse', baseProb: 0.15, trigger: 'Water scarcity/drought causes political collapse in Egypt/Jordan; Second Arab Spring.', advisory: 'Pre-fund humanitarian and economic resilience in fragile states; Contain migration flows to Europe.' }
+                    ]
+                },
+                impacts: {
+                    Fuel: { baseline: 9.0, volatility: 1.0, commodity: 'Jet Fuel/Bunker', concentration: 0.9, risk: 'Extreme' },
+                    Minerals: { baseline: 6.0, volatility: 0.8, commodity: 'Fertilizer/Phosphate', concentration: 0.7, risk: 'Medium' },
+                    Gold: { baseline: 9.5, volatility: 0.5, commodity: '$ Gold/Oil', concentration: 0.0, risk: 'Extreme' },
+                    Markets: { baseline: 7.0, volatility: 2.0, commodity: 'MENA Equities/Debt', concentration: 0.0, risk: 'Medium-High' },
+                    Stability: { baseline: 8.0, volatility: 1.5, commodity: 'Migration/Governance', concentration: 0.0, risk: 'Very High' },
+                    Agriculture: { baseline: 8.5, volatility: 2.0, commodity: 'Wheat Imports', concentration: 0.8, risk: 'Very High' }
+                }
+            },
+            Africa: {
+                title: "Africa: Sahel Terrorism, Governance & Great Power Competition",
+                baselineProb: 0.40,
+                toggles: [
+                    { id: 'DRC_Rwanda_Conflict', label: 'DRC-Rwanda Conflict (M23)', min: 10, max: 90, default: 75, multiplier: 0.04, impact: 'Minerals', desc: "M23/militia activity in Eastern DRC, backed by Rwanda. High score risks full-scale war, disrupting global Cobalt/Tantalum supply chains." },
+                    { id: 'Russia_China_Influence', label: 'Russia/China Engagement', min: 10, max: 90, default: 65, multiplier: 0.03, impact: 'Stability', desc: "Level of Russian (security) and Chinese (economic) influence displacing Western partnerships. High score increases risk of resource nationalism and autarky." },
+                    { id: 'West_Africa_Coup_Risk', label: 'West Africa Coup Contagion', min: 10, max: 90, default: 55, multiplier: 0.035, impact: 'Stability', desc: "Likelihood of further military coups in West Africa (e.g., Senegal, Benin). High score signals democratic backsliding and ECOWAS fragmentation." },
+                    { id: 'Boko_Haram_Activity', label: 'Boko Haram (West Africa)', min: 10, max: 90, default: 60, multiplier: 0.025, impact: 'Agriculture', desc: "Terrorist activity in the Lake Chad Basin. High score disrupts local agriculture, increases displacement, and destabilizes Nigeria/Cameroon/Chad." },
+                    { id: 'Al_Shabaab_Activity', label: 'Al-Shabaab (East Africa)', min: 10, max: 90, default: 70, multiplier: 0.03, impact: 'Stability', desc: "Terrorist activity in Somalia and Kenya. High score threatens Horn of Africa stability and key maritime chokepoints." },
+                    { id: 'North_Africa_Unrest', label: 'North Africa Unrest (Arab Spring 2.0)', min: 10, max: 90, default: 40, multiplier: 0.03, impact: 'Markets', desc: "Risk of widespread political instability and protests in North Africa (e.g., Egypt, Tunisia). High score increases market volatility and migration pressure on Europe." }
+                ],
+                scenarios: {
+                    '3-6M': [
+                        { name: 'Contained Instability', baseProb: 0.40, trigger: 'Sudan stalemate holds; Sahel juntas consolidate; Limited coastal incidents.', advisory: 'Targeted stabilization funds (Chad/CAR); Maritime security aid for Gulf of Guinea; Fund non-Russian security capacity.' },
+                        { name: 'Regional Spillover', baseProb: 0.35, trigger: 'Collapse of El Fasher; Jihadist bases in coastal states; ECOWAS-AES rupture.', advisory: 'Initiate major UN-AU peace enforcement mission; Establish humanitarian corridors; Global coordination on forced migration.' },
+                        { name: 'Great Power Proxy War', baseProb: 0.10, trigger: 'Direct confrontation (Africa Corps vs. Western assets); Overt Russian air defense delivery.', advisory: 'Impose comprehensive sanctions on Africa Corps and associated leadership; Initiate urgent diplomatic off-ramps with Moscow.' }
+                    ],
+                    '6-12M': [
+                        { name: 'Proxy Entrenchment', baseProb: 0.45, trigger: 'Russia/China consolidate control over gold/mineral mines; Juntas formalize long-term rule (Mali/Niger).', advisory: 'Focus on governance support for ECOWAS coastal states; Sanction illicit gold flows; Accelerate Lobito Corridor investment.' },
+                        { name: 'Humanitarian-Forced Intervention', baseProb: 0.25, trigger: 'Famine declared in Sudan; Atrocities in Darfur force AU/UN resolution; ECOWAS deploys forces to coastal borders.', advisory: 'Support African-led security operations; Secure aid corridors; Focus on debt relief for stable neighbors.' },
+                        { name: 'DRC-Rwanda War', baseProb: 0.20, trigger: 'Direct state-on-state clashes between DRC and Rwanda; Seizure of Goma.', advisory: 'Immediate UNSC action; Sanction key actors; Prepare for extreme global disruption to Cobalt supply.' }
+                    ],
+                    '1-3Y': [
+                        { name: 'Terror Arc Consolidation', baseProb: 0.50, trigger: 'Jihadist groups link Sahel to Lake Chad region; State authority collapses in multiple Sahel zones.', advisory: 'Accept long-term counter-insurgency effort; Focus resources on stabilizing coastal states and critical supply routes (e.g., ports).' },
+                        { name: 'Resource Nationalization/War', baseProb: 0.25, trigger: 'DRC/Zambia nationalizes mining assets; External powers intervene in local conflicts over resource access.', advisory: 'Mitigate supply risk by accelerating non-African sources/recycling; Engage diplomacy to prevent regional resource war.' },
+                        { name: 'African-Led Stabilization', baseProb: 0.15, trigger: 'ECOWAS/AU successfully mediate political transitions; New AfCFTA initiatives boost intra-African trade.', advisory: 'Provide sustained financial and logistical backing to African-led peace and development initiatives (long-term gain).' }
+                    ],
+                    '3-5Y': [
+                        { name: 'Three-Bloc Competition', baseProb: 0.50, trigger: 'African nations leverage US/China/EU rivalry for infrastructure investment; AfCFTA integration accelerates.', advisory: 'Africa becomes central to global supply chains; Focus on industrialization and value addition (e.g., battery mfg).' },
+                        { name: 'Conflict Fragmentation', baseProb: 0.30, trigger: 'State collapse in Sudan/DRC; Terrorist arc links Sahel to Somalia; Mass internal/external displacement.', advisory: 'Global security threat; Massive resource drain; Permanent risk to cobalt/gold supply.' },
+                        { name: 'Democratic Resurgence', baseProb: 0.10, trigger: 'Successful democratic transition in Nigeria/Ghana/Senegal stabilizes West Africa; Coup regimes fail to deliver security.', advisory: 'Support governance and anti-corruption efforts; Leverage youthful demographics for economic growth.' }
+                    ]
+                },
+                impacts: {
+                    Fuel: { baseline: 6.0, volatility: 1.5, commodity: 'African Diesel Cracks', concentration: 0.6, risk: 'Medium' },
+                    Minerals: { baseline: 9.0, volatility: 2.0, commodity: 'Cobalt/Tantalum/Au', concentration: 0.95, risk: 'Extreme' },
+                    Gold: { baseline: 8.0, volatility: 1.0, commodity: 'Illicit Gold Flows', concentration: 0.0, risk: 'High' },
+                    Markets: { baseline: 6.5, volatility: 1.5, commodity: 'African Equities/Debt', concentration: 0.0, risk: 'Medium' },
+                    Stability: { baseline: 8.5, volatility: 1.5, commodity: 'Migration/Governance', concentration: 0.0, risk: 'Very High' },
+                    Agriculture: { baseline: 9.0, volatility: 2.5, commodity: 'Food Aid/Staples', concentration: 0.7, risk: 'Extreme' }
+                }
+            },
+            Americas: {
+                title: "Americas: Caribbean Stability, Migration & Hemispheric Tensions",
+                baselineProb: 0.45,
+                toggles: [
+                    { id: 'Haiti_Stability', label: 'Haitian Stability', min: 10, max: 90, default: 20, multiplier: -0.04, impact: 'Stability', desc: "Measures the level of governance and security in Haiti. A low score represents widespread gang control and institutional collapse, driving mass migration and regional instability." },
+                    { id: 'Maduro_Confrontation', label: 'Venezuelan Retaliation Risk', min: 10, max: 90, default: 60, multiplier: 0.03, impact: 'Fuel', desc: "Risk of Venezuelan retaliation against US assets/citizens following counter-narcotics strikes. High score increases risk of military intervention." },
+                    { id: 'CIA_Regime_Change_Op', label: 'Covert Regime Change Ops (Venezuela)', min: 10, max: 90, default: 15, multiplier: 0.04, impact: 'Stability', desc: "Models the intensity of covert US operations aimed at regime change in Venezuela. A high score represents significant activity, which carries a high risk of exposure, confrontation, and encouraging deeper Russian/Chinese intervention." },
+                    { id: 'Guyana_Essequibo_Tension', label: 'Essequibo Coercion Factor', min: 10, max: 90, default: 45, multiplier: 0.02, impact: 'Minerals', desc: "Venezuelan pressure on Guyana (oil/gas operations). High score impacts resource project schedules/insurance in the Southern Caribbean." },
+                    { id: 'Internal_US_Polarization', label: 'Internal US Stability', min: 10, max: 90, default: 80, multiplier: 0.015, impact: 'Markets', desc: "Level of US political/fiscal dysfunction (e.g., budget shutdowns, election unrest). High score increases global financial uncertainty." }
+                ],
+                scenarios: {
+                    '3-6M': [
+                        { name: 'Limited Strikes Continue', baseProb: 0.45, trigger: 'Consistent U.S. counter-narcotics strikes; Venezuela seeks UN action.', advisory: 'Maintain calibrated interdiction; Fund regional humanitarian support; Establish clear deconfliction channels.' },
+                        { name: 'Diplomatic Resolution', baseProb: 0.25, trigger: 'Maduro concessions on oil/elections; Sustained international pressure on US.', advisory: 'Prepare phased sanctions relief tied to verifiable election benchmarks; Support OAS/regional mediation efforts.' },
+                        { name: 'US Military Intervention', baseProb: 0.20, trigger: 'Venezuelan retaliation against U.S. assets; Exposure of major US covert op; Severe humanitarian crisis.', advisory: 'Ensure UN/OAS alignment for post-conflict governance; Secure oil supply lines; Prepare large-scale military/logistics operation.' }
+                    ],
+                    '6-12M': [
+                        { name: 'Post-Election Instability', baseProb: 0.40, trigger: 'Following the rigged 2024 election, Maduro regime purges remaining opposition; US imposes new sectoral sanctions; Migration flows to Colombia/Brazil exceed 10,000/week.', advisory: 'Focus on containing refugee flows; Activate Central America Migration Pact; Strengthen support for OAS/regional democratic norms.' },
+                        { name: 'Near-Shoring Boom/Risk', baseProb: 0.30, trigger: 'Mexico/Colombia/Brazil capture significant manufacturing share from China; Cartel violence threatens logistics hubs.', advisory: 'Invest in infrastructure security (Mexico/Brazil); Secure Lithium Triangle supply against resource nationalism.' },
+                        { name: 'Haiti Collapse/Intervention', baseProb: 0.20, trigger: 'Kenyan-led mission fails; Gangs seize key port/airport; US/Canada forced to lead new stabilization effort.', advisory: 'Prioritize regional stability over sanctions rigidity; Support CARICOM-led security initiatives.' }
+                    ],
+                    '1-3Y': [
+                        { name: 'Managed Political Transition', baseProb: 0.55, trigger: 'Venezuela sees democratic transition; Oil production slowly returns to global market (1M bbl/day).', advisory: 'Engage with new government to stabilize the region; Focus on debt restructuring to prevent financial contagion.' },
+                        { name: 'Cartel State Consolidation', baseProb: 0.25, trigger: 'Mexican cartels achieve quasi-state control in key regions; Fentanyl crisis deepens in the US.', advisory: 'Treat cartels as organized insurgency; Increase border security and counter-fentanyl operations; Support Mexico’s security forces and Central American migration pacts.' },
+                        { name: 'Hemispheric Conflict', baseProb: 0.10, trigger: 'US military ops in Mexico/Colombia; Venezuela retaliates, triggering intervention from Brazil/Colombia.', advisory: 'Immediate de-escalation via UN/OAS; Avoid multi-front military quagmire; Secure global energy supplies against LATAM disruption.' }
+                    ],
+                    '3-5Y': [
+                        { name: 'Managed Decline & Near-Shoring', baseProb: 0.50, trigger: 'Venezuela sees democratic transition; US/Mexico/Canada solidify economic bloc; Lithium Triangle production ramps up.', advisory: 'Focus on Latin America as reliable, diversified supply partner; Mitigate resource nationalism risks through long-term contracts.' },
+                        { name: 'Authoritarian/Cartel Bloc', baseProb: 0.25, trigger: 'Venezuela/Nicaragua align with BRICS/China for security; Mexican cartels achieve quasi-state control; US political system remains polarized.', advisory: 'Permanent security threat on Southern US border; Increased investment in border security and counter-fentanyl operations.' },
+                        { name: 'South American Resource War', baseProb: 0.15, trigger: 'Essequibo border dispute turns kinetic; Civil unrest disrupts Lithium Triangle mining (Bolivia/Chile/Argentina).', advisory: 'Diplomatic mediation (Brazil/OAS); Secure military/economic access to critical Lithium/REEs in the region.' }
+                    ]
+                },
+                impacts: {
+                    Fuel: { baseline: 7.0, volatility: 1.5, commodity: 'Venezuelan Oil/LNG', concentration: 0.4, risk: 'Medium-High' },
+                    Minerals: { baseline: 6.5, volatility: 1.0, commodity: 'Lithium/Rare Earths', concentration: 0.3, risk: 'Medium' },
+                    Gold: { baseline: 7.5, volatility: 0.5, commodity: 'Illegal Gold Flows', concentration: 0.0, risk: 'High' },
+                    Markets: { baseline: 8.0, volatility: 2.0, commodity: 'LATAM Risk Premium', concentration: 0.0, risk: 'Very High' },
+                    Stability: { baseline: 7.5, volatility: 1.5, commodity: 'Migration/Governance', concentration: 0.0, risk: 'Medium-High' },
+                    Agriculture: { baseline: 6.0, volatility: 1.5, commodity: 'Corn/Soy Exports', concentration: 0.4, risk: 'Medium' }
+                }
+            }
+        };
+
+        // --- 2. Core Simulation Logic (Monte Carlo) ---
+
+        let baselineAverages = {}; 
+        let baselineOutcomes = {};
+        let adjustedOutcomes = {};
+
+        // Helper to get lever effects
+        function getLeverAdjustment(impactKey, type) {
+            let totalAdjustment = 0;
+            for (const region in decisionLevers) {
+                decisionLevers[region].forEach(lever => {
+                    if (activeLevers[lever.id] && lever.impact.hasOwnProperty(impactKey)) {
+                        totalAdjustment += lever.impact[impactKey];
+                    }
+                });
+            }
+            return totalAdjustment;
+        }
+
+        function classifyRiskScore(score) {
+            if (score >= RISK_CLASSES['Global Escalation'].minScore) return 'Global Escalation';
+            if (score >= RISK_CLASSES['Regional War'].minScore) return 'Regional War';
+            if (score >= RISK_CLASSES['Contained Conflict'].minScore) return 'Contained Conflict';
+            return 'Win-Win Stabilization';
+        }
+
+        function calculateIterationRisk(region) {
+            const data = regionalData[region];
+            const impacts = data.impacts;
+            const toggles = data.toggles;
+            const impactFactors = {};
+            
+            // Handle Global Toggles
+            const bricsCohesion = document.getElementById('BRICS_Cohesion')?.value / 100 || 0.5;
+            const bricsEffect = (bricsCohesion - 0.5) * 0.2; // Max +/- 10% effect
+            
+            // A more cohesive BRICS makes sanctions less effective (increases market risk for G7) and can embolden actors.
+            impactFactors['Markets'] = (impactFactors['Markets'] || 0) + bricsEffect;
+            if (region === 'Europe' || region === 'Asia' || region === 'Americas') {
+                impactFactors['Stability'] = (impactFactors['Stability'] || 0) + bricsEffect * 0.5;
+            }
+
+
+            toggles.forEach(toggle => {
+                const value = document.getElementById(toggle.id)?.value / 100 || toggle.default / 100;
+                const change = value * toggle.multiplier;
+                impactFactors[toggle.impact] = (impactFactors[toggle.impact] || 0) + change;
+            });
+            
+            for (const key in impacts) {
+                const leverAdj = getLeverAdjustment(key, 'type'); 
+                impactFactors[key] = (impactFactors[key] || 0) + leverAdj;
+            }
+
+            let weightedRisk = 0;
+            let totalWeight = 0;
+            const impactScores = {}; 
+
+            for (const key in impacts) {
+                const impact = impacts[key];
+                const factor = impactFactors[key] || 0;
+                let risk = impact.baseline + (impact.baseline * factor) + (Math.random() * impact.volatility * 2 - impact.volatility);
+                risk = Math.max(0, Math.min(10, risk));
+                impactScores[key] = risk; 
+                const weight = (impact.concentration * 0.5) + 0.5;
+                weightedRisk += risk * weight;
+                totalWeight += weight;
+            }
+
+            return { score: weightedRisk / totalWeight, impacts: impactScores };
+        }
+
+        function runMonteCarlo(updateGlobal = false) {
+            const region = currentRegion;
+            const iterations = SCENARIO_ITERS;
+            let totalRiskScore = 0;
+            let totalImpactScores = {};
+            const outcomeCounts = {
+                'Win-Win Stabilization': 0, 'Contained Conflict': 0, 'Regional War': 0, 'Global Escalation': 0
+            };
+
+            for (let i = 0; i < iterations; i++) {
+                const result = calculateIterationRisk(region);
+                totalRiskScore += result.score;
+                outcomeCounts[classifyRiskScore(result.score)]++;
+                for (const key in result.impacts) {
+                    totalImpactScores[key] = (totalImpactScores[key] || 0) + result.impacts[key];
+                }
+            }
+
+            const avgRisk = totalRiskScore / iterations;
+            lastCalculatedAvgRisk = avgRisk; // BUG FIX: Store the latest risk score
+
+            const avgImpactScores = {};
+            for (const key in totalImpactScores) {
+                avgImpactScores[key] = totalImpactScores[key] / iterations;
+            }
+            
+            adjustedOutcomes[region] = outcomeCounts;
+
+            if (Object.keys(baselineAverages).length === 0 || updateGlobal) {
+                const baseIterations = 1000; 
+                Object.keys(regionalData).forEach(r => {
+                    let totalBaseRisk = 0;
+                    let tempImpacts = {};
+                    let baseOutcomeCounts = { 'Win-Win Stabilization': 0, 'Contained Conflict': 0, 'Regional War': 0, 'Global Escalation': 0 };
+
+                    for (let i = 0; i < baseIterations; i++) {
+                        const result = calculateIterationRisk(r);
+                        totalBaseRisk += result.score;
+                        baseOutcomeCounts[classifyRiskScore(result.score)]++;
+                        for (const key in result.impacts) {
+                            tempImpacts[key] = (tempImpacts[key] || 0) + result.impacts[key];
+                        }
+                    }
+                    baselineAverages[r] = totalBaseRisk / baseIterations;
+                    
+                    const baseImpacts = {};
+                    for (const key in tempImpacts) {
+                        baseImpacts[key] = tempImpacts[key] / baseIterations;
+                    }
+                    regionalData[r].baselineImpacts = baseImpacts; 
+                    baselineOutcomes[r] = baseOutcomeCounts;
+                });
+            }
+
+            updateComparisonChart(adjustedOutcomes[region], baselineOutcomes[region], iterations, avgRisk); 
+            updateImpactBreakdownChart(avgImpactScores, regionalData[region].baselineImpacts);
+            updateRegionalSummary(avgRisk);
+            updateContagionMatrix(avgRisk, baselineAverages[region]);
+            updateScenarioTable(currentTimeHorizon, avgRisk);
+            
+            if (updateGlobal) {
+                updateGlobalKPIs();
+            }
+        }
+        
+        // --- 3. UI Update Functions ---
+
+        function updateAllChartColors() {
+            const gridColor = 'rgba(209, 213, 219, 0.5)';
+            const textColor = '#374151';
+            const titleColor = '#111827';
+        
+            [outcomeComparisonChart, impactBreakdownChart].forEach(chartInstance => {
+                if (!chartInstance) return;
+                
+                // Update scales
+                if (chartInstance.options.scales.x) {
+                    chartInstance.options.scales.x.grid.color = gridColor;
+                    chartInstance.options.scales.x.ticks.color = textColor;
+                    if (chartInstance.options.scales.x.title) {
+                        chartInstance.options.scales.x.title.color = textColor;
+                    }
+                }
+                if (chartInstance.options.scales.y) {
+                    chartInstance.options.scales.y.grid.color = gridColor;
+                    chartInstance.options.scales.y.ticks.color = textColor;
+                     if (chartInstance.options.scales.y.title) {
+                        chartInstance.options.scales.y.title.color = textColor;
+                    }
+                }
+        
+                // Update plugins
+                if (chartInstance.options.plugins.title) {
+                    chartInstance.options.plugins.title.color = titleColor;
+                }
+                if (chartInstance.options.plugins.legend) {
+                    chartInstance.options.plugins.legend.labels.color = textColor;
+                }
+        
+                chartInstance.update();
+            });
+        }
+
+        function updateContagionMatrix(currentAvgRisk, baselineAvgRisk) {
+            const container = document.getElementById('contagion-matrix-container');
+            const propagationChannels = ['Energy', 'Shipping', 'Alliances', 'Markets', 'Cyber'];
+            const netContagionMetricEl = document.getElementById('net-contagion-metric');
+            
+            let totalContagion = 0;
+            let baselineContagion = 0;
+            
+            const adjustedContagionValues = CONTAGION_CHANNELS.map((target, index) => {
+                const baselineContagionValue = CONTAGION_IMPACT_MAP[currentRegion][target] * 100;
+                const riskChange = currentAvgRisk - baselineAverages[currentRegion];
+                let adjustedContagionValue = baselineContagionValue + (riskChange * 5); 
+
+                decisionLevers[currentRegion].forEach(lever => {
+                    if (activeLevers[lever.id] && lever.impact.Contagion) {
+                        adjustedContagionValue += (lever.impact.Contagion / CONTAGION_CHANNELS.length);
+                    }
+                });
+
+                return Math.max(0, Math.min(100, adjustedContagionValue));
+            });
+            
+            totalContagion = adjustedContagionValues.reduce((sum, val) => sum + val, 0);
+            baselineContagion = CONTAGION_CHANNELS.reduce((sum, key) => sum + (CONTAGION_IMPACT_MAP[currentRegion][key] * 100), 0);
+            
+            let gridHtml = `<div class="contagion-matrix-grid">`;
+            gridHtml += `<div class="matrix-header">Propagate To -></div>`;
+            propagationChannels.forEach(target => {
+                gridHtml += `<div class="matrix-header">${target}</div>`;
+            });
+            gridHtml += `<div class="matrix-cell-label">${currentRegion} Shock</div>`;
+            propagationChannels.forEach((target, index) => {
+                const adjustedContagionValue = adjustedContagionValues[index];
+                const band = Math.floor(adjustedContagionValue / 20) * 20; 
+                gridHtml += `<div class="matrix-cell bg-contagion-${band}">${adjustedContagionValue.toFixed(0)}%</div>`;
+            });
+            gridHtml += `</div>`;
+            
+            let listHtml = `<div class="contagion-list">`;
+            propagationChannels.forEach((target, index) => {
+                const adjustedContagionValue = adjustedContagionValues[index];
+                const band = Math.floor(adjustedContagionValue / 20) * 20; 
+                listHtml += `
+                    <div class="contagion-list-item bg-contagion-${band}">
+                        <span>${target}</span>
+                        <span class="font-bold">${adjustedContagionValue.toFixed(0)}%</span>
+                    </div>
+                `;
+            });
+            listHtml += `</div>`;
+
+
+            container.innerHTML = gridHtml + listHtml;
+            
+            const netReduction = baselineContagion - totalContagion;
+            
+            if(netContagionMetricEl) {
+                const netReductionAvg = netReduction / propagationChannels.length;
+                const contagionColor = netReductionAvg > 0 ? 'text-green-500' : 'text-red-500';
+                const contagionTrend = netReductionAvg > 0 ? '▼' : '▲';
+                netContagionMetricEl.className = `font-bold text-lg ${contagionColor}`;
+                netContagionMetricEl.innerHTML = `${Math.abs(netReductionAvg).toFixed(1)} pts <span class="text-xs font-normal">(${contagionTrend})</span>`;
+            }
+        }
+
+        function updateComparisonChart(currentOutcomes, baselineOutcomes, iterations, avgRisk) {
+            const chartCanvas = document.getElementById('outcomeComparisonChart');
+            const globalEscalationMetricEl = document.getElementById('global-escalation-metric');
+            if (!chartCanvas) return;
+
+            const riskLabels = Object.keys(RISK_CLASSES);
+            
+            const adjustedData = riskLabels.map(label => 
+                (currentOutcomes[label] / iterations) * 100
+            );
+
+            const baselineRegionalProb = (baselineOutcomes['Regional War'] / 1000) * 100;
+            const baselineGlobalProb = (baselineOutcomes['Global Escalation'] / 1000) * 100;
+
+            const data = {
+                labels: ['Adjusted Scenario'],
+                datasets: [
+                    ...riskLabels.map(label => ({
+                        label: label,
+                        data: [adjustedData[riskLabels.indexOf(label)]],
+                        backgroundColor: RISK_CLASSES[label].color,
+                        borderColor: '#161b22',
+                        borderWidth: 1
+                    }))
+                ]
+            };
+            
+            if (outcomeComparisonChart) {
+                outcomeComparisonChart.destroy();
+            }
+
+            const ctx = chartCanvas.getContext('2d');
+            outcomeComparisonChart = new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, display: true, min: 0, max: 100 },
+                        y: { stacked: true, display: false }
+                    },
+                    plugins: {
+                        title: { display: false },
+                        legend: { display: true, position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.dataset.label}: ${context.parsed.x.toFixed(1)}%`
+                            }
+                        },
+                        annotation: {
+                            annotations: [{
+                                type: 'line',
+                                mode: 'vertical',
+                                scaleID: 'x',
+                                value: 100 - (baselineRegionalProb + baselineGlobalProb), 
+                                borderColor: '#ef4444', 
+                                borderWidth: 3,
+                                borderDash: [6, 6],
+                                label: {
+                                    content: `BASE REGIONAL RISK LINE`,
+                                    enabled: true,
+                                    position: 'top',
+                                    font: { size: 10, weight: 'bold' },
+                                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                                    color: 'white'
+                                }
+                            }]
+                        }
+                    },
+                    animation: { duration: 100 }
+                }
+            });
+            updateAllChartColors();
+            
+            const adjustedGlobalProb = (currentOutcomes['Global Escalation'] / iterations) * 100;
+            
+            if (globalEscalationMetricEl) {
+                const trendIcon = adjustedGlobalProb > baselineGlobalProb + 0.1 ? '▲' : adjustedGlobalProb < baselineGlobalProb - 0.1 ? '▼' : '–';
+                const colorClass = adjustedGlobalProb > baselineGlobalProb + 0.1 ? 'text-red-500' : adjustedGlobalProb < baselineGlobalProb - 0.1 ? 'text-green-500' : 'text-gray-500';
+                globalEscalationMetricEl.className = `font-bold text-lg ${colorClass}`;
+                globalEscalationMetricEl.innerHTML = `${adjustedGlobalProb.toFixed(1)}% <span class="text-xs font-normal">(${trendIcon})</span>`;
+            }
+        }
+
+
+        function updateImpactBreakdownChart(currentImpacts, baselineImpacts) {
+            const chartCanvas = document.getElementById('impactBreakdownChartCanvas');
+            if (!chartCanvas) return;
+
+            const impactKeys = Object.keys(IMPACT_COLORS);
+            const data = {
+                labels: impactKeys,
+                datasets: [{
+                    label: 'Net Score Delta (Adjusted - Baseline)',
+                    data: impactKeys.map(key => currentImpacts[key] - baselineImpacts[key]),
+                    backgroundColor: impactKeys.map(key => {
+                        const delta = currentImpacts[key] - baselineImpacts[key];
+                        return delta >= 0 ? '#ef4444' : '#10b981';
+                    }),
+                    borderColor: '#161b22',
+                    borderWidth: 1
+                }]
+            };
+
+            if (impactBreakdownChart) {
+                impactBreakdownChart.destroy();
+            }
+
+            const ctx = chartCanvas.getContext('2d');
+            impactBreakdownChart = new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Net Change in Risk Score (Points)' } },
+                        y: {}
+                    },
+                    plugins: {
+                        title: { display: false },
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.label}: ${context.parsed.x.toFixed(2)} points`
+                            }
+                        }
+                    },
+                    animation: { duration: 100 }
+                }
+            });
+            updateAllChartColors();
+        }
+
+
+        // --- 4. UI Rendering and Event Handlers ---
+
+        function getRiskRating(score) {
+            if (score >= 8.5) return { text: 'Extreme (9-10)', class: 'risk-high' };
+            if (score >= 7.5) return { text: 'Very High (7.5-8.5)', class: 'risk-high' };
+            if (score >= 6.0) return { text: 'High (6-7.5)', class: 'risk-medium' };
+            if (score >= 5.0) return { text: 'Medium (5-6)', class: 'risk-low' };
+            return { text: 'Low (<5)', class: 'risk-low' };
+        }
+
+        function updateRegionalSummary(avgRisk) {
+            const data = regionalData[currentRegion];
+            const toggles = data.toggles;
+            const impacts = data.impacts;
+
+            const summaryTextEl = document.getElementById('decision-summary-text');
+            const stabilizedFactorsEl = document.getElementById('top-stabilized-factors');
+            const escalatingRisksEl = document.getElementById('top-escalating-risks');
+            const impactBreakdownEl = document.getElementById('impact-breakdown-metric');
+
+            let changeBreakdown = {};
+            const impactKeys = Object.keys(IMPACT_COLORS);
+
+            toggles.forEach(toggle => {
+                const sliderVal = document.getElementById(toggle.id)?.value || toggle.default;
+                const change = (sliderVal / 100 - toggle.default / 100) * toggle.multiplier * impacts[toggle.impact].baseline;
+                changeBreakdown[toggle.impact] = (changeBreakdown[toggle.impact] || 0) + change;
+            });
+
+            for (const key of impactKeys) {
+                const leverAdj = getLeverAdjustment(key, 'type');
+                if (leverAdj !== 0) {
+                    changeBreakdown[key] = (changeBreakdown[key] || 0) + leverAdj * impacts[key].baseline;
+                }
+            }
+
+            const formattedImpacts = Object.keys(changeBreakdown).map(key => ({ key, change: changeBreakdown[key] }));
+            const significantImpacts = formattedImpacts.filter(f => Math.abs(f.change) > 0.05);
+            const topGains = significantImpacts.filter(f => f.change < 0).sort((a, b) => a.change - b.change).slice(0, 3);
+            const topRisks = significantImpacts.filter(f => f.change > 0).sort((a, b) => b.change - a.change).slice(0, 3);
+
+            stabilizedFactorsEl.innerHTML = topGains.length > 0 ? topGains.map(g => `<div>${g.key}</div>`).join('') : 'None';
+            escalatingRisksEl.innerHTML = topRisks.length > 0 ? topRisks.map(r => `<div>${r.key}</div>`).join('') : 'None';
+
+            const currentProb = (adjustedOutcomes[currentRegion]['Regional War'] / SCENARIO_ITERS) * 100;
+            const baseProb = (baselineOutcomes[currentRegion]['Regional War'] / 1000) * 100;
+            const deltaProb = currentProb - baseProb;
+            
+            let decisionText, actionColor;
+            if (deltaProb < -0.5) {
+                decisionText = `<strong>Policy Success:</strong> The probability of regional war was <strong>reduced by ${Math.abs(deltaProb).toFixed(1)} pp</strong>. The applied levers are successfully stabilizing the theater.`;
+                actionColor = 'gain';
+            } else if (deltaProb > 0.5) {
+                decisionText = `<strong>Critical Spike:</strong> The probability of regional war has <strong>increased by ${deltaProb.toFixed(1)} pp</strong>. The current event mix is highly destabilizing and requires immediate counter-measures.`;
+                actionColor = 'loss';
+            } else {
+                decisionText = `<strong>Neutral Effect:</strong> Levers and events have resulted in a minimal net change (<0.5 pp) to regional conflict probability, indicating a fragile stability.`;
+                actionColor = 'neutral';
+            }
+            summaryTextEl.innerHTML = decisionText;
+            summaryTextEl.className = `mb-4 p-3 rounded-md text-sm ${actionColor}`;
+
+            // Find the most significant shift
+            let mostSignificantShift = null;
+            if (significantImpacts.length > 0) {
+                mostSignificantShift = significantImpacts.reduce((prev, current) => 
+                    (Math.abs(prev.change) > Math.abs(current.change)) ? prev : current
+                );
+            }
+
+            // Update the Key Factor Shifts metric box
+            if (impactBreakdownEl) {
+                if (mostSignificantShift) {
+                    const { key, change } = mostSignificantShift;
+                    const color = change > 0 ? 'text-red-500' : 'text-green-500';
+                    const trend = change > 0 ? '▲' : '▼';
+                    impactBreakdownEl.className = `font-bold text-lg ${color}`;
+                    impactBreakdownEl.innerHTML = `
+                        ${key} <span class="text-base font-normal">(${trend} ${Math.abs(change).toFixed(2)})</span>
+                    `;
+                } else {
+                    impactBreakdownEl.className = 'text-sm font-normal text-gray-500 mt-1';
+                    impactBreakdownEl.innerHTML = `No significant shift`;
+                }
+            }
+
+            let shiftDirection = deltaProb < -0.5 ? 'Stabilized' : (deltaProb > 0.5 ? 'Escalated' : 'Neutral');
+            let shiftMagnitude = Math.abs(deltaProb).toFixed(1) + ' pp';
+            document.getElementById('comparison-chart-title').textContent = `Risk Shift: ${shiftDirection} by ${shiftMagnitude}`;
+        }
+
+        function updateScenarioTable(horizon, currentAvgRisk) {
+            const region = currentRegion;
+            const data = regionalData[region];
+            const scenarios = data.scenarios[horizon];
+            const baselineAvg = baselineAverages[region];
+            
+            document.getElementById('prob-header').textContent = `Adj. Probability (${horizon})`;
+            document.getElementById('trigger-header').textContent = `${horizon} Triggers/Indicators`;
+            document.getElementById('advisory-header').textContent = `Strategic Advisory`;
+
+            if (!baselineAvg) return;
+
+            const isLongTerm = horizon === '1-3Y' || horizon === '3-5Y';
+            
+            const rawAdjusted = scenarios.map(scenario => {
+                let newProb = scenario.baseProb;
+                const riskChange = currentAvgRisk - baselineAvg;
+
+                if (!isLongTerm) {
+                    const sensitivity = 1.5; // Increased sensitivity for more noticeable changes
+                    let adjustmentFactor = 1.0;
+
+                    const isEscalation = scenario.name.includes('War') || scenario.name.includes('Invasion') || scenario.name.includes('Collapse') || scenario.name.includes('Escalation') || scenario.name.includes('Conflict');
+                    const isDeEscalation = scenario.name.includes('Peace') || scenario.name.includes('Resolution') || scenario.name.includes('Détente') || scenario.name.includes('Normalization');
+
+                    if (isEscalation) {
+                        // If risk increases, increase prob of escalation scenarios
+                        adjustmentFactor = 1 + (riskChange * sensitivity);
+                    } else if (isDeEscalation) {
+                        // If risk increases, decrease prob of de-escalation scenarios
+                        adjustmentFactor = 1 - (riskChange * sensitivity);
+                    } else {
+                         // For neutral/stalemate scenarios, adjust slightly opposite to the risk change
+                         adjustmentFactor = 1 - (riskChange * sensitivity * 0.25);
+                    }
+                    
+                    newProb = scenario.baseProb * adjustmentFactor;
+                }
+                
+                return Math.max(0.01, newProb); // Ensure probability is not zero or negative
+            });
+
+            const sum = rawAdjusted.reduce((a, b) => a + b, 0);
+            const normalizedAdjusted = rawAdjusted.map(prob => prob / sum);
+
+            const scenarioTableBody = document.getElementById('scenario-table-body');
+            scenarioTableBody.innerHTML = scenarios.map((scenario, index) => {
+                const adjustedProb = normalizedAdjusted[index] * 100;
+                const probText = adjustedProb.toFixed(1) + '%';
+                let trendIcon = '';
+                const baseProb = scenario.baseProb * 100;
+                const difference = adjustedProb - baseProb;
+                
+                if (difference > 2.0 && !isLongTerm) trendIcon = `<span class="text-red-600 ml-1">▲</span>`;
+                else if (difference < -2.0 && !isLongTerm) trendIcon = `<span class="text-green-600 ml-1">▼</span>`;
+                else trendIcon = `<span class="text-gray-500 ml-1">-</span>`;
+
+                return `
+                    <tr class="hover:bg-gray-50">
+                        <td data-label="Scenario">${scenario.name}</td>
+                        <td data-label="Adj. Probability (${horizon})">${probText} ${trendIcon}</td>
+                        <td data-label="Triggers/Indicators">${scenario.trigger || 'N/A'}</td>
+                        <td data-label="Strategic Advisory">${scenario.advisory}</td>
+                    </tr>`;
+            }).join('');
+        }
+        
+        function updateGlobalKPIs() {
+            // This function is now OBSOLETE as KPIs are integrated into the main summary
+        }
+        
+        function handleLeverToggle(id, isChecked) {
+            if (isChecked) {
+                activeLevers[id] = true;
+            } else {
+                delete activeLevers[id];
+            }
+            runMonteCarlo(true);
+        }
+
+        // Generic modal function
+        function openGenericModal(title, contentHtml) {
+            const modalContent = document.getElementById('policy-modal-content');
+            modalContent.innerHTML = `
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 class="text-xl font-bold text-blue-700">${title}</h3>
+                    <button onclick="closePolicyModal()" class="text-2xl font-bold text-gray-500 hover:text-red-500">&times;</button>
+                </div>
+                ${contentHtml}
+                <button onclick="closePolicyModal()" class="mt-6 w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Close</button>
+            `;
+            document.getElementById('policy-modal-overlay').classList.add('active');
+        }
+        
+        function openExplanationModal(section, isGlobal = false) {
+            let title = '';
+            let contentHtml = '';
+
+            if(isGlobal) {
+                const toggle = globalToggles.find(t => t.id === section);
+                if(toggle) {
+                    title = `About ${toggle.label}`;
+                    contentHtml = `<p class="text-base">${toggle.desc}</p>`;
+                }
+            } else {
+                 switch (section) {
+                    case 'outcome':
+                        title = 'About the Outcome Probability Meter';
+                        contentHtml = `
+                            <p class="text-base">This chart visualizes the likelihood of four potential strategic outcomes after running the simulation, based on the current set of events and policy levers.</p>
+                            <ul class="list-disc list-inside mt-3 space-y-2 text-sm">
+                                <li><strong>Win-Win Stabilization:</strong> A de-escalated scenario with positive diplomatic and economic resolutions.</li>
+                                <li><strong>Contained Conflict:</strong> A limited, localized conflict with minimal spillover.</li>
+                                <li><strong>Regional War:</strong> A full-scale conflict involving multiple state actors within the selected region.</li>
+                                <li><strong>Global Escalation:</strong> The conflict expands beyond the region, drawing in major global powers.</li>
+                            </ul>
+                            <p class="mt-4 text-sm">The <strong>red dashed line</strong> indicates the baseline probability of entering a "Regional War" or "Global Escalation" scenario <em>before</em> any of your policy levers are applied. This allows you to quickly see if your strategy is successfully reducing the most severe risks.</p>
+                        `;
+                        break;
+                    case 'delta':
+                        title = 'About the Net Policy Delta Score';
+                        contentHtml = `
+                            <p class="text-base">This chart breaks down how your policy decisions and event settings impact each key risk factor compared to the baseline simulation.</p>
+                            <ul class="list-disc list-inside mt-3 space-y-2 text-sm">
+                                <li>A <strong class="text-green-600">green bar</strong> indicates a <strong>reduction in risk</strong> for that factor (a positive outcome). This means your choices are making that sector more stable.</li>
+                                <li>A <strong class="text-red-600">red bar</strong> indicates an <strong>increase in risk</strong> (a negative outcome). This shows where your strategy might be creating new vulnerabilities.</li>
+                            </ul>
+                            <p class="mt-4 text-sm">Use this chart to understand the specific trade-offs of your decisions. For example, a policy might stabilize Fuel prices but inadvertently increase risk in the Markets.</p>
+                        `;
+                        break;
+                    case 'contagion':
+                        title = 'About the Contagion Matrix';
+                        contentHtml = `
+                            <p class="text-base mb-4">This matrix models how a crisis in the currently selected region (the "Shock") could spread to and impact other global systems—a process known as shock propagation or contagion.</p>
+                            
+                            <h4 class="font-bold text-md mb-2 text-[var(--text-color-primary)]">Propagation Channels Explained</h4>
+                            <ul class="list-disc list-inside space-y-2 text-sm mb-4">
+                                <li><strong>Energy:</strong> The risk of disruption to global oil and gas supplies, leading to price shocks and supply chain failures.</li>
+                                <li><strong>Shipping:</strong> The risk to maritime trade routes, container availability, and freight costs, impacting global commerce.</li>
+                                <li><strong>Alliances:</strong> The risk of the crisis drawing in treaty allies or security partners, widening the conflict's diplomatic or military scope.</li>
+                                <li><strong>Markets:</strong> The risk of financial panic, capital flight from emerging markets, and systemic risk to the global financial system.</li>
+                                <li><strong>Cyber:</strong> The risk of state-sponsored cyber attacks escalating and spilling over into non-military targets, such as critical infrastructure in other regions.</li>
+                            </ul>
+
+                            <h4 class="font-bold text-md mb-2 text-[var(--text-color-primary)]">Color-Coding Guide</h4>
+                            <div class="space-y-1 text-sm">
+                                 <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-contagion-80"></div> <strong>High (80-100%):</strong> Severe risk of contagion; systemic spillover is highly likely.</div>
+                                 <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-contagion-60"></div> <strong>Elevated (60-79%):</strong> Significant risk; spillover is probable.</div>
+                                 <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-contagion-40"></div> <strong>Moderate (40-59%):</strong> Moderate risk; spillover is possible.</div>
+                                 <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-contagion-20"></div> <strong>Low (20-39%):</strong> Low risk; spillover is unlikely but plausible.</div>
+                                 <div class="flex items-center"><div class="w-4 h-4 rounded-sm mr-2 bg-contagion-0"></div> <strong>Minimal (0-19%):</strong> Minimal risk; contagion is highly unlikely.</div>
+                            </div>
+
+                            <p class="mt-4 text-sm">On mobile devices, this matrix is displayed as a vertical list for better readability. The goal is to apply stabilization levers that reduce these contagion probabilities, effectively creating a "firebreak" against a wider global crisis.</p>
+                        `;
+                        break;
+                    case 'summary':
+                        title = 'About the Decision Summary';
+                        contentHtml = `
+                            <p class="text-base">This section provides an executive summary of your simulation results, designed for quick assessment and decision-making.</p>
+                            <ul class="list-disc list-inside mt-3 space-y-2 text-sm">
+                                <li><strong>Main Summary Text:</strong> Gives a top-line narrative of the outcome: whether your policy choices resulted in a "Policy Success," a "Critical Spike" in risk, or had a "Neutral Effect."</li>
+                                <li><strong>Factor Analysis:</strong> Highlights the top 3 sectors that were most positively affected (stabilized) and negatively affected (escalated) by your inputs.</li>
+                                <li><strong>Key Metrics:</strong> Shows the adjusted probability of "Global Escalation," the net change in the "Contagion Index," and the single "Top Factor Shift," with trend indicators (▲ or ▼) to compare against the baseline.</li>
+                            </ul>
+                            <p class="mt-4 text-sm">This summary helps you instantly gauge the overall effectiveness of your strategy and identify the most significant consequences of your decisions.</p>
+                        `;
+                        break;
+                    case 'factors':
+                        title = 'About the Top Factor Shift';
+                        contentHtml = `
+                            <p class="text-base">This metric highlights the single most significant risk factor change from the "Net Policy Delta Score" chart, providing an at-a-glance view of the primary consequence of your strategic choices.</p>
+                            <ul class="list-disc list-inside mt-3 space-y-2 text-sm">
+                                <li>It shows the factor (e.g., Fuel, Markets, Minerals) with the largest shift, either positive or negative.</li>
+                                <li>The trend indicator (<span class="text-green-500">▼</span> or <span class="text-red-500">▲</span>) and color show whether the risk for that factor has decreased (stabilized) or increased (escalated).</li>
+                                <li>The number indicates the magnitude of the change in the risk score.</li>
+                            </ul>
+                            <p class="mt-4 text-sm">Use this to immediately identify the most impactful outcome of your current simulation settings.</p>
+                        `;
+                        break;
+                    case 'global':
+                        title = 'About P(Global Escalation)';
+                        contentHtml = `
+                            <p class="text-base">This metric shows the final calculated probability that the regional conflict will escalate to a global scale, drawing in major world powers.</p>
+                            <ul class="list-disc list-inside mt-3 space-y-2 text-sm">
+                                <li>This is the most severe outcome in the simulation, representing a systemic failure of deterrence and diplomacy.</li>
+                                <li>The percentage is derived from the "Global Escalation" portion of the <strong>Outcome Probability Meter</strong>.</li>
+                                <li>The trend indicator (<span class="text-green-500">▼</span> or <span class="text-red-500">▲</span>) shows whether the current probability is lower or higher than the baseline risk before your policy interventions.</li>
+                            </ul>
+                            <p class="mt-4 text-sm">Your primary strategic goal should be to minimize this number by applying effective stabilization levers.</p>
+                        `;
+                        break;
+                    case 'netcontagion':
+                        title = 'About Net Contagion';
+                        contentHtml = `
+                            <p class="text-base">This metric quantifies the overall change in the risk of the crisis spreading to other global systems (contagion), as detailed in the <strong>Contagion Matrix</strong>.</p>
+                            <ul class="list-disc list-inside mt-3 space-y-2 text-sm">
+                                <li>It represents the average change in contagion probability across all channels (Energy, Shipping, Alliances, etc.) compared to the baseline.</li>
+                                <li>A value accompanied by a <strong class="text-green-600">down arrow (▼)</strong> is a good outcome. It means your policies are successfully <strong>reducing</strong> the risk of the crisis spreading. The number shows the magnitude of this reduction in points.</li>
+                                <li>A value accompanied by a <strong class="text-red-600">up arrow (▲)</strong> is a bad outcome, indicating your choices are <strong>increasing</strong> the risk of global contagion.</li>
+                            </ul>
+                            <p class="mt-4 text-sm">This score measures the effectiveness of your strategy in creating a "firebreak" to contain the crisis within the region.</p>
+                        `;
+                        break;
+                }
+            }
+
+
+            openGenericModal(title, contentHtml);
+        }
+
+
+        function openToggleModal(regionKey, toggleId) {
+            const toggle = regionalData[regionKey].toggles.find(t => t.id === toggleId);
+            if (!toggle) return;
+            const contentHtml = `
+                <h4 class="font-bold text-lg mb-2">Event Description:</h4>
+                <div class="space-y-1 text-sm"><p>${toggle.desc}</p></div>
+            `;
+            openGenericModal(toggle.label, contentHtml);
+        }
+
+        function openLeverModal(regionKey, leverId) {
+            const lever = decisionLevers[regionKey].find(l => l.id === leverId);
+            const impactsInfo = regionalData[regionKey].impacts;
+            if (!lever) return;
+
+            let economicImpactsHtml = '';
+            const economicImpacts = Object.keys(lever.impact).filter(key => key !== 'Contagion');
+
+            if (economicImpacts.length > 0) {
+                economicImpactsHtml += '<ul class="list-none space-y-3 mt-2">';
+                economicImpacts.forEach(key => {
+                    const val = lever.impact[key];
+                    const direction = val < 0 ? 'decrease' : 'increase';
+                    const color = val < 0 ? 'text-green-600' : 'text-red-600';
+                    const percentage = Math.abs(val * 100).toFixed(0);
+                    const commodity = impactsInfo[key] ? `(${impactsInfo[key].commodity})` : '';
+
+                    let explanation = '';
+                    if (key === 'Fuel') {
+                        explanation = `This reflects a direct influence on energy prices and supply chain security, which are critical drivers of inflation and economic stability.`;
+                    } else if (key === 'Markets') {
+                        explanation = `This gauges the effect on investor confidence, equity valuations, and debt markets, signaling broader financial stability.`;
+                    } else if (key === 'Minerals') {
+                        explanation = `This addresses vulnerabilities in the supply of critical raw materials essential for defense, technology, and green energy sectors.`;
+                    } else if (key === 'Stability') {
+                        explanation = `This measures the impact on regional governance, internal political cohesion, and the potential for destabilizing migration flows.`;
+                    } else if (key === 'Agriculture') {
+                         explanation = `This impacts food security, commodity prices, and the potential for social unrest driven by food shortages.`;
+                    }
+
+                    economicImpactsHtml += `
+                        <li>
+                            <strong class="flex items-center ${color}">${key} ${commodity} <span class="ml-2 font-bold text-lg">${val < 0 ? '▼' : '▲'} ${percentage}%</span></strong>
+                            <p class="text-sm pl-1 mt-1 text-[var(--text-color-muted)]">${explanation}</p>
+                        </li>
+                    `;
+                });
+                economicImpactsHtml += '</ul>';
+            }
+
+            let contagionImpactHtml = '';
+            if (lever.impact.Contagion) {
+                const val = lever.impact.Contagion;
+                const direction = val < 0 ? 'reduces' : 'increases';
+                const color = val < 0 ? 'text-green-600' : 'text-red-600';
+                const points = Math.abs(val).toFixed(1);
+                contagionImpactHtml = `
+                    <p class="mt-2 text-base ${color}">
+                        This lever <strong>${direction}</strong> the risk of the crisis spilling over into other regions by an estimated <strong>${points} points</strong> on the Contagion Index, acting as a crucial firebreak against wider instability.
+                    </p>
+                `;
+            }
+
+            const contentHtml = `
+                <p class="mb-4 text-base">${lever.desc}</p>
+                
+                <div class="border-t border-[var(--card-border-color)] pt-3">
+                    <h4 class="font-bold text-lg mb-1">Impact Analysis</h4>
+                    <p class="text-sm text-[var(--text-color-muted)] mb-3">Projected change to key risk scores if this lever is activated.</p>
+
+                    <h5 class="font-semibold text-md text-blue-500">Economic & Stability Impact</h5>
+                    ${economicImpactsHtml || '<p class="text-sm">No direct economic impact defined.</p>'}
+
+                    <h5 class="font-semibold text-md text-purple-500 mt-4">Systemic Risk Impact</h5>
+                    ${contagionImpactHtml || '<p class="text-sm">No direct contagion impact defined.</p>'}
+                </div>
+            `;
+
+            openGenericModal(`${lever.name} Analysis`, contentHtml);
+        }
+        
+        function openVulnerabilityModal(regionKey, vulnerabilityKey) {
+            const data = regionalData[regionKey];
+            const impact = data.impacts[vulnerabilityKey];
+            if (!impact) return;
+
+            const indicatorClass = VULNERABILITY_INDICATOR_CLASS_MAP[impact.risk] || 'risk-winwin';
+            const concentrationPercent = (impact.concentration * 100).toFixed(0);
+
+            let rationale = '';
+            if (vulnerabilityKey === 'Fuel') {
+                rationale = `This region's energy security is highly sensitive to disruptions in <strong>${impact.commodity}</strong>. With a supply concentration of <strong>${concentrationPercent}%</strong> from specific chokepoints or producers, any instability can trigger significant price volatility and supply shortages, impacting both industrial output and consumer costs.`;
+            } else if (vulnerabilityKey === 'Minerals') {
+                 rationale = `The global supply of <strong>${impact.commodity}</strong> is <strong>${concentrationPercent}%</strong> concentrated, making it a critical vulnerability. This sector is essential for advanced defense systems, technology, and green energy infrastructure. Disruptions here can have cascading effects on national security and long-term economic competitiveness.`;
+            } else if (vulnerabilityKey === 'Gold') {
+                rationale = `In times of crisis, <strong>${impact.commodity}</strong> acts as a primary safe-haven asset. Its price is a key indicator of global risk appetite. High volatility here signals a flight to safety, capital outflows from riskier assets, and potential liquidity challenges in the broader financial system.`;
+            } else if (vulnerabilityKey === 'Markets') {
+                rationale = `The <strong>${impact.commodity}</strong> are highly susceptible to geopolitical shocks in this region. A crisis would likely trigger sharp sell-offs, increase borrowing costs, and undermine investor confidence, posing a systemic risk to both regional and global financial stability.`;
+            } else if (vulnerabilityKey === 'Stability') {
+                rationale = `Regional stability, particularly concerning <strong>${impact.commodity}</strong>, is a significant vulnerability. State fragility, internal conflict, or political collapse can lead to mass displacement and cross-border migration, placing immense strain on neighboring states and international aid systems, while also creating openings for extremist groups.`;
+            } else if (vulnerabilityKey === 'Agriculture') {
+                rationale = `Food security in this region is dependent on stable <strong>${impact.commodity}</strong> supply chains. With <strong>${concentrationPercent}%</strong> of key food or agricultural inputs being concentrated, any disruption from conflict, climate, or trade policy can lead to price shocks, shortages, and significant social unrest.`;
+            }
+
+            const contentHtml = `
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <div class="sm:w-1/3">
+                         <h5 class="font-semibold text-md">Risk Rating</h5>
+                         <p><span class="risk-indicator ${indicatorClass}">${impact.risk}</span></p>
+                         <h5 class="font-semibold text-md mt-3">Key Commodity</h5>
+                         <p class="font-mono">${impact.commodity}</p>
+                         <h5 class="font-semibold text-md mt-3">Supply Concentration</h5>
+                         <p class="font-mono">${concentrationPercent}%</p>
+                    </div>
+                    <div class="sm:w-2/3">
+                        <h5 class="font-semibold text-md">Strategic Rationale</h5>
+                        <p class="text-sm mt-1">${rationale}</p>
+                    </div>
+                </div>
+            `;
+            openGenericModal(`${vulnerabilityKey} Sector Vulnerability`, contentHtml);
+        }
+
+
+        function closePolicyModal() {
+            document.getElementById('policy-modal-overlay').classList.remove('active');
+        }
+
+        function generateLeversHtml(regionKey) {
+            const levers = decisionLevers[regionKey];
+            if (!levers || levers.length === 0) {
+                return '<p class="text-sm text-gray-500">No specific Win-Win levers defined for this region.</p>';
+            }
+            
+            return levers.map(lever => {
+                const badgeClass = `badge-${lever.type.toLowerCase()}`;
+                const isChecked = activeLevers[lever.id] ? 'checked' : '';
+                
+                const openModalCall = `openLeverModal('${regionKey}', '${lever.id}')`;
+
+                return `
+                    <div class="lever-item">
+                        <div class="lever-name-wrapper">
+                            <span class="lever-name">${lever.name}</span>
+                             <span class="info-icon" onclick="${openModalCall}">?</span>
+                        </div>
+                        <div class="lever-controls" onclick="event.stopPropagation()">
+                            <span class="lever-badge ${badgeClass}">${lever.type}</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="${lever.id}" class="sr-only peer" ${isChecked} onchange="handleLeverToggle(this.id, this.checked)">
+                                <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                            </label>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+
+        function loadToggles(regionKey) {
+            const togglesContainer = document.getElementById('toggles-container');
+            const data = regionalData[regionKey];
+            
+            togglesContainer.innerHTML = data.toggles.map(toggle => {
+                const openModalCall = `openToggleModal('${regionKey}', '${toggle.id}')`;
+
+                return `
+                    <div class="tooltip-container block">
+                        <label for="${toggle.id}" class="block text-sm font-medium mb-1">${toggle.label} <span class="info-icon" onclick="${openModalCall}">?</span></label>
+                        <input type="range" id="${toggle.id}" min="${toggle.min}" max="${toggle.max}" value="${toggle.default}" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer range-sm" oninput="this.nextElementSibling.textContent=this.value + '%'; runMonteCarlo(true);">
+                        <output class="block text-right text-xs text-gray-600">${toggle.default}%</output>
+                    </div>`;
+            }).join('');
+        }
+        
+        function loadGlobalToggles() {
+            const container = document.getElementById('global-toggles-container');
+            container.innerHTML = globalToggles.map(toggle => `
+                 <div class="tooltip-container block">
+                    <label for="${toggle.id}" class="block text-sm font-medium mb-1">${toggle.label} <span class="info-icon" onclick="openExplanationModal('${toggle.id}', true)">?</span></label>
+                    <input type="range" id="${toggle.id}" min="${toggle.min}" max="${toggle.max}" value="${toggle.default}" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer range-sm" oninput="this.nextElementSibling.textContent=this.value + '%'; runMonteCarlo(true);">
+                    <output class="block text-right text-xs text-gray-600">${toggle.default}%</output>
+                </div>
+            `).join('');
+        }
+
+        function loadRegion(regionKey) {
+            currentRegion = regionKey;
+            const data = regionalData[regionKey];
+
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-region') === regionKey);
+            });
+            
+            document.getElementById('region-title').textContent = data.title;
+            
+            const vulnerabilityContainer = document.getElementById('vulnerability-cards-container');
+            
+            vulnerabilityContainer.innerHTML = Object.keys(data.impacts).map(key => {
+                const impact = data.impacts[key];
+                const cardClass = VULNERABILITY_CARD_CLASS_MAP[impact.risk] || 'low';
+                const indicatorClass = VULNERABILITY_INDICATOR_CLASS_MAP[impact.risk] || 'risk-winwin';
+
+                return `
+                    <div class="vulnerability-card ${cardClass}" onclick="openVulnerabilityModal('${regionKey}', '${key}')">
+                        <p class="font-bold text-base">${key}</p>
+                        <p>Commodity: <span class="font-mono text-sm">${impact.commodity}</span></p>
+                        <p>Concentration: <span class="font-mono text-sm">${(impact.concentration * 100).toFixed(0)}%</span></p>
+                        <p class="mt-1">Risk Rating: <span class="risk-indicator ${indicatorClass}">${impact.risk}</span></p>
+                    </div>`;
+            }).join('');
+
+            loadToggles(regionKey);
+            
+            const leversContainer = document.getElementById('levers-container');
+            leversContainer.innerHTML = generateLeversHtml(regionKey);
+
+
+            document.getElementById('simulation-section').classList.remove('hidden');
+
+            document.querySelectorAll('.time-horizon-button').forEach(b => b.classList.remove('active'));
+            document.querySelector('.time-horizon-button[data-horizon="3-6M"]').classList.add('active');
+            currentTimeHorizon = '3-6M'; 
+
+            runMonteCarlo(true);
+        }
+
+        // --- 5. App Initialization ---
+        window.addEventListener('load', () => {
+        
+            loadGlobalToggles();
+            
+            document.querySelectorAll('.tab-button').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    loadRegion(e.target.getAttribute('data-region'));
+                });
+            });
+
+            document.querySelectorAll('.time-horizon-button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const button = e.target.closest('.time-horizon-button');
+                    currentTimeHorizon = button.getAttribute('data-horizon');
+                    
+                    document.querySelectorAll('.time-horizon-button').forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+
+                    updateScenarioTable(currentTimeHorizon, lastCalculatedAvgRisk);
+                });
+            });
+            
+            document.getElementById('policy-modal-overlay').addEventListener('click', (e) => {
+                if (e.target.id === 'policy-modal-overlay') {
+                    closePolicyModal();
+                }
+            });
+
+            // Initial Load
+            loadRegion('Europe');
+        });
+
+    </script>
+</body>
+</html>
